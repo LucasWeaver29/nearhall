@@ -57,7 +57,7 @@ export function NearHallApp() {
   const [walkSummary, setWalkSummary] = useState<{
     distanceMeters: number;
     durationSeconds: number;
-    source: "osrm" | "straight";
+    source: "valhalla" | "straight";
   } | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -187,7 +187,7 @@ export function NearHallApp() {
       .then(async (res) => {
         if (!res.ok) throw new Error("route failed");
         return res.json() as Promise<{
-          source: "osrm" | "straight";
+          source: "valhalla" | "straight";
           distanceMeters: number;
           durationSeconds: number;
           coordinates: [number, number][];
@@ -251,11 +251,12 @@ export function NearHallApp() {
             selectedSlug={selectedSlug}
             userLocation={userLocation}
             routeCoordinates={routeCoordinates}
+            routeSource={walkSummary?.source ?? null}
             onSelect={setSelectedSlug}
           />
           <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-[#0b1f33]/80 px-2 py-1 text-xs text-[#d7e0ea] backdrop-blur">
             {walkSummary
-              ? `Walk ~${formatWalkMinutes(walkSummary.durationSeconds)} · ${formatDistance(walkSummary.distanceMeters)}`
+              ? `${walkSummary.source === "straight" ? "Direct campus" : "Walk"} ~${formatWalkMinutes(walkSummary.durationSeconds)} · ${formatDistance(walkSummary.distanceMeters)}`
               : "New Haven map · sorted by proximity"}
           </div>
         </section>

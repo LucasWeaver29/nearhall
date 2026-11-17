@@ -20,6 +20,7 @@ type Props = {
   selectedSlug: string | null;
   userLocation: { lat: number; lng: number } | null;
   routeCoordinates: [number, number][] | null;
+  routeSource?: "valhalla" | "straight" | null;
   onSelect: (slug: string) => void;
 };
 
@@ -134,6 +135,7 @@ export function CampusMap({
   selectedSlug,
   userLocation,
   routeCoordinates,
+  routeSource = null,
   onSelect,
 }: Props) {
   const icons = useMemo(() => {
@@ -158,7 +160,7 @@ export function CampusMap({
     >
       <TileLayer
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-        attribution="Tiles &copy; Esri · Routing &copy; OSRM"
+        attribution="Tiles &copy; Esri · Pedestrian routing &copy; Valhalla / OSM"
       />
       <InvalidateOnResize />
       <FocusSelection
@@ -176,6 +178,7 @@ export function CampusMap({
             opacity: 0.9,
             lineCap: "round",
             lineJoin: "round",
+            dashArray: routeSource === "straight" ? "8 10" : undefined,
           }}
         />
       ) : null}

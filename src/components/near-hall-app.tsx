@@ -85,6 +85,20 @@ export function NearHallApp() {
     return map;
   }, [friendCheckins]);
 
+  const friendsByHall = useMemo(() => {
+    const record: Record<
+      string,
+      { displayName: string; isSelf: boolean }[]
+    > = {};
+    for (const [slug, list] of checkinsByHall) {
+      record[slug] = list.map((c) => ({
+        displayName: c.displayName,
+        isSelf: c.isSelf,
+      }));
+    }
+    return record;
+  }, [checkinsByHall]);
+
   function useCampusFallback(reason: string) {
     setUserLocation(YALE_CAMPUS.center);
     setLocationMode("campus");
@@ -282,13 +296,25 @@ export function NearHallApp() {
               userLocation={userLocation}
               routeCoordinates={routeCoordinates}
               routeSource={walkSummary?.source ?? null}
+              friendsByHall={friendsByHall}
               onSelect={setSelectedSlug}
             />
           </div>
-          <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-md bg-[#0b1f33]/80 px-2 py-1 text-xs text-[#d7e0ea] backdrop-blur">
-            {walkSummary
-              ? `${walkSummary.source === "straight" ? "Direct campus" : "Walk"} ~${formatWalkMinutes(walkSummary.durationSeconds)} · ${formatDistance(walkSummary.distanceMeters)}`
-              : "New Haven map · sorted by proximity"}
+          <div className="pointer-events-none absolute left-3 top-3 z-[500] space-y-1">
+            <div className="rounded-md bg-[#0b1f33]/80 px-2 py-1 text-xs text-[#d7e0ea] backdrop-blur">
+              {walkSummary
+                ? `${walkSummary.source === "straight" ? "Direct campus" : "Walk"} ~${formatWalkMinutes(walkSummary.durationSeconds)} · ${formatDistance(walkSummary.distanceMeters)}`
+                : "New Haven map · sorted by proximity"}
+            </div>
+            {Object.keys(friendsByHall).length > 0 ? (
+              <div className="inline-flex items-center gap-1.5 rounded-md bg-[#0b1f33]/80 px-2 py-1 text-[11px] text-[#f2b705] backdrop-blur">
+                <span
+                  className="inline-block size-1.5 rounded-full bg-[#f2b705] shadow-[0_0_0_3px_rgba(242,183,5,0.25)]"
+                  aria-hidden
+                />
+                Gold ring · friend eating there
+              </div>
+            ) : null}
           </div>
         </section>
 

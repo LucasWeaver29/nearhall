@@ -15,12 +15,19 @@ import "leaflet/dist/leaflet.css";
 import type { HallMenu } from "@/lib/types";
 import { NEW_HAVEN_BOUNDS, YALE_CAMPUS } from "@/lib/geo";
 
+type FriendPresence = {
+  displayName: string;
+  isSelf: boolean;
+};
+
 type Props = {
   halls: HallMenu[];
   selectedSlug: string | null;
   userLocation: { lat: number; lng: number } | null;
   routeCoordinates: [number, number][] | null;
   routeSource?: "valhalla" | "straight" | null;
+  /** Check-ins keyed by dining-hall slug — used for a subtle map cue. */
+  friendsByHall?: Record<string, FriendPresence[]>;
   onSelect: (slug: string) => void;
 };
 
@@ -133,15 +140,28 @@ function FocusSelection({
   return null;
 }
 
-function hallIcon(selected: boolean, open: boolean) {
+function hallIcon(selected: boolean, open: boolean, hasFriends: boolean) {
   const fill = selected ? "#F2B705" : open ? "#0B3A5B" : "#6B7C8A";
-  const html = `<div style="width:16px;height:16px;border-radius:999px;background:${fill};border:2px solid #F7F3EA;box-shadow:0 1px 4px rgba(11,31,51,.35)"></div>`;
+  // Soft gold halo + tiny pip when someone is eating here — readable but quiet.
+  const friendRing = hasFriends
+    ? `<span class="nearhall-friend-ring" aria-hidden="true"></span><span class="nearhall-friend-pip" aria-hidden="true"></span>`
+    : "";
+  const html = `<div class="nearhall-marker-inner${hasFriends ? " nearhall-marker-inner--friend" : ""}" style="background:${fill}">${friendRing}</div>`;
   return L.divIcon({
-    className: "nearhall-marker",
+    className: `nearhall-marker${hasFriends ? " nearhall-marker--friend" : ""}`,
     html,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    iconSize: hasFriends ? [28, 28] : [16, 16],
+    iconAnchor: hasFriends ? [14, 14] : [8, 8],
   });
+}
+
+function friendLabel(people: FriendPresence[]): string {
+  if (people.length === 0) return "";
+  const names = people
+    .slice(0, 3)
+    .map((p) => (p.isSelf ? "You" : p.displayName));
+  const extra = people.length > 3 ? ` +${people.length - 3}` : "";
+  return `Eating here: ${names.join(", ")}${extra}`;
 }
 
 export function CampusMap({
@@ -150,6 +170,7 @@ export function CampusMap({
   userLocation,
   routeCoordinates,
   routeSource = null,
+  friendsByHall = {},
   onSelect,
 }: Props) {
   const [mounted, setMounted] = useState(false);
@@ -161,10 +182,14 @@ export function CampusMap({
     return new Map(
       halls.map((row) => [
         row.hall.slug,
-        hallIcon(row.hall.slug === selectedSlug, row.hall.openNow),
+        hallIcon(
+          row.hall.slug === selectedSlug,
+          row.hall.openNow,
+          (friendsByHall[row.hall.slug]?.length ?? 0) > 0,
+        ),
       ]),
     );
-  }, [halls, selectedSlug]);
+  }, [halls, selectedSlug, friendsByHall]);
 
   if (!mounted) {
     return (
@@ -226,21 +251,29 @@ export function CampusMap({
             <Popup>You are here</Popup>
           </CircleMarker>
         ) : null}
-        {halls.map((row) => (
-          <Marker
-            key={row.hall.slug}
-            position={[row.hall.latitude, row.hall.longitude]}
-            icon={icons.get(row.hall.slug)}
-            eventHandlers={{
-              click: () => onSelect(row.hall.slug),
-            }}
-          >
-            <Popup>
-              <strong>{row.hall.name}</strong>
-              <div>{row.hall.hoursLabel}</div>
-            </Popup>
-          </Marker>
-        ))}
+        {halls.map((row) => {
+          const people = friendsByHall[row.hall.slug] ?? [];
+          const presence = friendLabel(people);
+          return (
+            <Marker
+              key={row.hall.slug}
+              position={[row.hall.latitude, row.hall.longitude]}
+              icon={icons.get(row.hall.slug)}
+              zIndexOffset={people.length > 0 ? 200 : 0}
+              eventHandlers={{
+                click: () => onSelect(row.hall.slug),
+              }}
+            >
+              <Popup>
+                <strong>{row.hall.name}</strong>
+                <div>{row.hall.hoursLabel}</div>
+                {presence ? (
+                  <div style={{ marginTop: 4, color: "#8a6a00" }}>{presence}</div>
+                ) : null}
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );

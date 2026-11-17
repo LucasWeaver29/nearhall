@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clampMenuDate } from "@/lib/dates";
 import { estimateWalkMeters, haversineMeters } from "@/lib/geo";
-import { inferMealPeriod } from "@/lib/hours";
+import { inferMealPeriod, withMealContext } from "@/lib/hours";
 import { sampleHallMenus } from "@/lib/sample-data";
 import { fetchDiningHalls, fetchHallMenu } from "@/lib/nutrislice";
 import type { HallMenu, MealPeriod } from "@/lib/types";
@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
   const campusOnly = searchParams.get("campus") !== "0";
 
   try {
-    const halls = await fetchDiningHalls();
+    const halls = (await fetchDiningHalls()).map((hall) =>
+      withMealContext(hall, meal, date),
+    );
     const filtered = halls.filter((hall) => {
       if (openOnly && !hall.openNow) return false;
       if (campusOnly && hall.slug === "west-campus") return false;

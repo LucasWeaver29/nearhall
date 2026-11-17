@@ -7,6 +7,11 @@ export type DayHours = {
   is24Hours: boolean;
 };
 
+export type WeekHours = Record<
+  "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat",
+  DayHours
+>;
+
 export type DiningHall = {
   id: number;
   slug: string;
@@ -16,10 +21,12 @@ export type DiningHall = {
   longitude: number;
   operatingStatus: string;
   mealTypes: string[];
-  hours: Record<
-    "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat",
-    DayHours
-  >;
+  /** Facility-wide fallback hours when a meal schedule is missing. */
+  facilityHours: WeekHours;
+  /** Meal-period schedules from Nutrislice (Breakfast / Lunch / Dinner). */
+  mealHours: Partial<Record<MealPeriod, WeekHours>>;
+  /** Resolved schedule for the currently requested meal + day. */
+  hours: WeekHours;
   openNow: boolean;
   hoursLabel: string;
 };

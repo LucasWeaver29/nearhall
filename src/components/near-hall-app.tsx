@@ -396,7 +396,7 @@ export function NearHallApp() {
                   </div>
                   <div className="text-right text-sm">
                     <div className={selected.hall.openNow ? "text-[#9ad37f]" : "text-[#f0a39a]"}>
-                      {selected.hall.openNow ? "Open" : "Closed"}
+                      {selected.hall.openNow ? "Serving now" : "Not serving now"}
                     </div>
                     <div className="text-[#b8c7d6]">{selected.hall.hoursLabel}</div>
                     <div className="text-[#f2b705]">
@@ -473,7 +473,7 @@ function HallRow({
         <div>
           <div className="font-medium text-[#f7f3ea]">{row.hall.name}</div>
           <div className="mt-1 text-xs text-[#9eb0c2]">
-            {row.hall.openNow ? "Open" : "Closed"} · {row.hall.hoursLabel}
+            {row.hall.openNow ? "Serving now" : "Not serving now"} · {row.hall.hoursLabel}
           </div>
         </div>
         <div className="shrink-0 text-sm text-[#f2b705]">

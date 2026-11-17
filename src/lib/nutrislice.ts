@@ -1,5 +1,5 @@
 import { parseIsoDate, todayEasternIso } from "@/lib/dates";
-import { withOpenState } from "@/lib/hours";
+import { withMealContext } from "@/lib/hours";
 import { hasAnyNutrition } from "@/lib/nutrition";
 import type {
   DayHours,
@@ -7,6 +7,7 @@ import type {
   MealPeriod,
   MenuDish,
   NutritionInfo,
+  WeekHours,
 } from "@/lib/types";
 
 export { todayEasternIso } from "@/lib/dates";
@@ -19,6 +20,39 @@ type NutrisliceMenuType = {
   slug: string;
 };
 
+type NutrisliceDaySchedule = {
+  menu_type_id?: number;
+  menu_type_name?: string;
+  mon_enabled: boolean;
+  mon_start: string | null;
+  mon_end: string | null;
+  mon_is_24_hours: boolean;
+  tue_enabled: boolean;
+  tue_start: string | null;
+  tue_end: string | null;
+  tue_is_24_hours: boolean;
+  wed_enabled: boolean;
+  wed_start: string | null;
+  wed_end: string | null;
+  wed_is_24_hours: boolean;
+  thu_enabled: boolean;
+  thu_start: string | null;
+  thu_end: string | null;
+  thu_is_24_hours: boolean;
+  fri_enabled: boolean;
+  fri_start: string | null;
+  fri_end: string | null;
+  fri_is_24_hours: boolean;
+  sat_enabled: boolean;
+  sat_start: string | null;
+  sat_end: string | null;
+  sat_is_24_hours: boolean;
+  sun_enabled: boolean;
+  sun_start: string | null;
+  sun_end: string | null;
+  sun_is_24_hours: boolean;
+};
+
 type NutrisliceSchool = {
   id: number;
   name: string;
@@ -27,6 +61,7 @@ type NutrisliceSchool = {
   operating_status: string;
   geolocation?: { latitude?: number; longitude?: number } | null;
   active_menu_types?: NutrisliceMenuType[];
+  operating_days_by_menu_type?: NutrisliceDaySchedule[];
   mon_enabled: boolean;
   mon_start: string | null;
   mon_end: string | null;
@@ -156,6 +191,26 @@ function dayHours(
   return { enabled, start, end, is24Hours };
 }
 
+function weekFromSchedule(schedule: NutrisliceDaySchedule): WeekHours {
+  return {
+    mon: dayHours(schedule.mon_enabled, schedule.mon_start, schedule.mon_end, schedule.mon_is_24_hours),
+    tue: dayHours(schedule.tue_enabled, schedule.tue_start, schedule.tue_end, schedule.tue_is_24_hours),
+    wed: dayHours(schedule.wed_enabled, schedule.wed_start, schedule.wed_end, schedule.wed_is_24_hours),
+    thu: dayHours(schedule.thu_enabled, schedule.thu_start, schedule.thu_end, schedule.thu_is_24_hours),
+    fri: dayHours(schedule.fri_enabled, schedule.fri_start, schedule.fri_end, schedule.fri_is_24_hours),
+    sat: dayHours(schedule.sat_enabled, schedule.sat_start, schedule.sat_end, schedule.sat_is_24_hours),
+    sun: dayHours(schedule.sun_enabled, schedule.sun_start, schedule.sun_end, schedule.sun_is_24_hours),
+  };
+}
+
+function mealPeriodFromName(name?: string | null): MealPeriod | null {
+  const normalized = (name ?? "").trim().toLowerCase();
+  if (normalized === "breakfast") return "breakfast";
+  if (normalized === "lunch" || normalized === "brunch") return "lunch";
+  if (normalized === "dinner") return "dinner";
+  return null;
+}
+
 function mapSchool(school: NutrisliceSchool): DiningHall | null {
   const lat = school.geolocation?.latitude;
   const lng = school.geolocation?.longitude;
@@ -163,27 +218,34 @@ function mapSchool(school: NutrisliceSchool): DiningHall | null {
 
   const mealTypes = (school.active_menu_types ?? [])
     .map((m) => m.slug)
-    .filter((slug) => ["breakfast", "lunch", "dinner"].includes(slug));
+    .filter(
+      (slug): slug is MealPeriod =>
+        slug === "breakfast" || slug === "lunch" || slug === "dinner",
+    );
 
-  return withOpenState({
-    id: school.id,
-    slug: school.slug,
-    name: school.name,
-    address: school.address,
-    latitude: lat,
-    longitude: lng,
-    operatingStatus: school.operating_status,
-    mealTypes,
-    hours: {
-      mon: dayHours(school.mon_enabled, school.mon_start, school.mon_end, school.mon_is_24_hours),
-      tue: dayHours(school.tue_enabled, school.tue_start, school.tue_end, school.tue_is_24_hours),
-      wed: dayHours(school.wed_enabled, school.wed_start, school.wed_end, school.wed_is_24_hours),
-      thu: dayHours(school.thu_enabled, school.thu_start, school.thu_end, school.thu_is_24_hours),
-      fri: dayHours(school.fri_enabled, school.fri_start, school.fri_end, school.fri_is_24_hours),
-      sat: dayHours(school.sat_enabled, school.sat_start, school.sat_end, school.sat_is_24_hours),
-      sun: dayHours(school.sun_enabled, school.sun_start, school.sun_end, school.sun_is_24_hours),
+  const facilityHours = weekFromSchedule(school);
+  const mealHours: Partial<Record<MealPeriod, WeekHours>> = {};
+  for (const schedule of school.operating_days_by_menu_type ?? []) {
+    const meal = mealPeriodFromName(schedule.menu_type_name);
+    if (!meal) continue;
+    mealHours[meal] = weekFromSchedule(schedule);
+  }
+
+  return withMealContext(
+    {
+      id: school.id,
+      slug: school.slug,
+      name: school.name,
+      address: school.address,
+      latitude: lat,
+      longitude: lng,
+      operatingStatus: school.operating_status,
+      mealTypes,
+      facilityHours,
+      mealHours,
     },
-  });
+    "lunch",
+  );
 }
 
 async function fetchJson<T>(path: string): Promise<T> {

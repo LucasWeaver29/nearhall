@@ -1,6 +1,8 @@
-import type { DayHours, DiningHall } from "@/lib/types";
+import { easternNoonFromIso, todayEasternIso } from "@/lib/dates";
+import type { DayHours, DiningHall, MealPeriod, WeekHours } from "@/lib/types";
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+export type DayKey = (typeof DAY_KEYS)[number];
 
 function parseTimeToMinutes(value: string | null): number | null {
   if (!value) return null;
@@ -20,15 +22,20 @@ function formatClock(value: string | null): string {
   return m === 0 ? `${hour12}${suffix}` : `${hour12}:${String(m).padStart(2, "0")}${suffix}`;
 }
 
-export function getTodayKey(date = new Date(), timeZone = "America/New_York") {
+export function getTodayKey(date = new Date(), timeZone = "America/New_York"): DayKey {
   const weekday = new Intl.DateTimeFormat("en-US", {
     timeZone,
     weekday: "short",
   })
     .format(date)
     .toLowerCase()
-    .slice(0, 3) as (typeof DAY_KEYS)[number];
+    .slice(0, 3) as DayKey;
   return weekday;
+}
+
+export function getDayKeyForIso(iso: string): DayKey {
+  const noon = easternNoonFromIso(iso);
+  return getTodayKey(noon ?? new Date());
 }
 
 export function getEasternMinutesNow(date = new Date()): number {
@@ -56,28 +63,58 @@ export function isOpenNow(hours: DayHours, date = new Date()): boolean {
   return now >= start && now <= end;
 }
 
-export function hoursLabel(hours: DayHours): string {
-  if (!hours.enabled) return "Closed today";
+export function hoursLabel(hours: DayHours, meal?: MealPeriod): string {
+  if (!hours.enabled) return meal ? `${mealLabel(meal)} closed` : "Closed today";
   if (hours.is24Hours) return "Open 24 hours";
-  return `${formatClock(hours.start)} – ${formatClock(hours.end)}`;
+  const range = `${formatClock(hours.start)} – ${formatClock(hours.end)}`;
+  return meal ? `${mealLabel(meal)} ${range}` : range;
 }
 
-export function inferMealPeriod(date = new Date()): "breakfast" | "lunch" | "dinner" {
+function mealLabel(meal: MealPeriod): string {
+  return meal.charAt(0).toUpperCase() + meal.slice(1);
+}
+
+export function inferMealPeriod(date = new Date()): MealPeriod {
   const minutes = getEasternMinutesNow(date);
   if (minutes < 10 * 60 + 30) return "breakfast";
   if (minutes < 15 * 60 + 30) return "lunch";
   return "dinner";
 }
 
-export function withOpenState<T extends Omit<DiningHall, "openNow" | "hoursLabel">>(
-  hall: T,
-  date = new Date(),
+export function resolveWeekHours(
+  hall: Pick<DiningHall, "facilityHours" | "mealHours">,
+  meal: MealPeriod,
+): WeekHours {
+  return hall.mealHours[meal] ?? hall.facilityHours;
+}
+
+export function withMealContext(
+  hall: Omit<DiningHall, "openNow" | "hoursLabel" | "hours"> &
+    Partial<Pick<DiningHall, "hours">>,
+  meal: MealPeriod,
+  dateIso: string = todayEasternIso(),
+  now = new Date(),
 ): DiningHall {
-  const today = getTodayKey(date);
-  const todayHours = hall.hours[today];
+  const week = resolveWeekHours(hall, meal);
+  const dayKey = getDayKeyForIso(dateIso);
+  const dayHours = week[dayKey];
+  const isToday = dateIso === todayEasternIso(now);
+
   return {
     ...hall,
-    openNow: isOpenNow(todayHours, date) && hall.operatingStatus !== "closed",
-    hoursLabel: hoursLabel(todayHours),
+    hours: week,
+    openNow:
+      isToday &&
+      hall.operatingStatus !== "closed" &&
+      isOpenNow(dayHours, now),
+    hoursLabel: hoursLabel(dayHours, meal),
   };
+}
+
+/** @deprecated prefer withMealContext */
+export function withOpenState<
+  T extends Omit<DiningHall, "openNow" | "hoursLabel" | "hours"> &
+    Partial<Pick<DiningHall, "hours">>,
+>(hall: T, date = new Date()): DiningHall {
+  return withMealContext(hall, inferMealPeriod(date), todayEasternIso(date), date);
 }

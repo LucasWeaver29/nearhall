@@ -1,32 +1,79 @@
-import { withOpenState } from "@/lib/hours";
-import type { DiningHall, HallMenu, MealPeriod } from "@/lib/types";
+import { withMealContext } from "@/lib/hours";
+import type { DiningHall, HallMenu, MealPeriod, WeekHours } from "@/lib/types";
 
-const openDay = {
+const breakfastDay = {
   enabled: true,
-  start: "07:30:00",
-  end: "20:30:00",
+  start: "08:00:00",
+  end: "11:00:00",
+  is24Hours: false,
+};
+const lunchDay = {
+  enabled: true,
+  start: "11:30:00",
+  end: "13:30:00",
+  is24Hours: false,
+};
+const dinnerDay = {
+  enabled: true,
+  start: "17:00:00",
+  end: "19:30:00",
+  is24Hours: false,
+};
+const closedDay = {
+  enabled: false,
+  start: null,
+  end: null,
   is24Hours: false,
 };
 
+function week(day: WeekHours["mon"], weekend = day): WeekHours {
+  return {
+    mon: day,
+    tue: day,
+    wed: day,
+    thu: day,
+    fri: day,
+    sat: weekend,
+    sun: weekend,
+  };
+}
+
 function hall(
-  partial: Omit<DiningHall, "openNow" | "hoursLabel" | "hours" | "operatingStatus" | "mealTypes"> & {
-    mealTypes?: string[];
-  },
+  partial: Omit<
+    DiningHall,
+    | "openNow"
+    | "hoursLabel"
+    | "hours"
+    | "facilityHours"
+    | "mealHours"
+    | "operatingStatus"
+    | "mealTypes"
+  > & { mealTypes?: string[] },
 ): DiningHall {
-  return withOpenState({
-    ...partial,
-    operatingStatus: "open",
-    mealTypes: partial.mealTypes ?? ["breakfast", "lunch", "dinner"],
-    hours: {
-      sun: openDay,
-      mon: openDay,
-      tue: openDay,
-      wed: openDay,
-      thu: openDay,
-      fri: openDay,
-      sat: { enabled: true, start: "09:00:00", end: "20:00:00", is24Hours: false },
+  return withMealContext(
+    {
+      ...partial,
+      operatingStatus: "open",
+      mealTypes: partial.mealTypes ?? ["breakfast", "lunch", "dinner"],
+      facilityHours: week({
+        enabled: true,
+        start: "07:00:00",
+        end: "21:00:00",
+        is24Hours: false,
+      }),
+      mealHours: {
+        breakfast: week(breakfastDay, closedDay),
+        lunch: week(lunchDay),
+        dinner: week(dinnerDay, {
+          enabled: true,
+          start: "17:00:00",
+          end: "19:00:00",
+          is24Hours: false,
+        }),
+      },
     },
-  });
+    "lunch",
+  );
 }
 
 export const SAMPLE_HALLS: DiningHall[] = [
@@ -89,7 +136,8 @@ const SAMPLE_MENUS: Record<string, Record<MealPeriod, string[]>> = {
 
 export function sampleHallMenus(meal: MealPeriod, query: string): HallMenu[] {
   const q = query.trim().toLowerCase();
-  return SAMPLE_HALLS.map((h) => {
+  return SAMPLE_HALLS.map((base) => {
+    const h = withMealContext(base, meal);
     const dishes = (SAMPLE_MENUS[h.slug]?.[meal] ?? []).map((name, index) => ({
       id: `${h.slug}-${meal}-${index}`,
       name,

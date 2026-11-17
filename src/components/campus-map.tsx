@@ -5,6 +5,7 @@ import {
   CircleMarker,
   MapContainer,
   Marker,
+  Polyline,
   Popup,
   TileLayer,
   useMap,
@@ -18,6 +19,7 @@ type Props = {
   halls: HallMenu[];
   selectedSlug: string | null;
   userLocation: { lat: number; lng: number } | null;
+  routeCoordinates: [number, number][] | null;
   onSelect: (slug: string) => void;
 };
 
@@ -26,20 +28,60 @@ const maxBounds = L.latLngBounds(
   [NEW_HAVEN_BOUNDS.northEast.lat, NEW_HAVEN_BOUNDS.northEast.lng],
 );
 
-function FitBounds({
+function FocusSelection({
   halls,
+  selectedSlug,
   userLocation,
+  routeCoordinates,
 }: {
   halls: HallMenu[];
+  selectedSlug: string | null;
   userLocation: { lat: number; lng: number } | null;
+  routeCoordinates: [number, number][] | null;
 }) {
   const map = useMap();
+  const selected = halls.find((h) => h.hall.slug === selectedSlug);
+  const selectedLat = selected?.hall.latitude;
+  const selectedLng = selected?.hall.longitude;
+  const userLat = userLocation?.lat;
+  const userLng = userLocation?.lng;
+  const routeKey = routeCoordinates?.length
+    ? `${routeCoordinates.length}:${routeCoordinates[0]?.join(",")}:${routeCoordinates.at(-1)?.join(",")}`
+    : "";
+
   useEffect(() => {
+    // Prefer fitting you + selected hall (and route if present).
+    if (
+      selectedLat != null &&
+      selectedLng != null &&
+      userLat != null &&
+      userLng != null
+    ) {
+      const points: [number, number][] =
+        routeCoordinates && routeCoordinates.length > 1
+          ? routeCoordinates
+          : [
+              [userLat, userLng],
+              [selectedLat, selectedLng],
+            ];
+      map.fitBounds(points, {
+        padding: [48, 48],
+        maxZoom: 17,
+        animate: true,
+      });
+      return;
+    }
+
+    if (selectedLat != null && selectedLng != null) {
+      map.setView([selectedLat, selectedLng], 17, { animate: true });
+      return;
+    }
+
     const points: [number, number][] = halls.map((h) => [
       h.hall.latitude,
       h.hall.longitude,
     ]);
-    if (userLocation) points.push([userLocation.lat, userLocation.lng]);
+    if (userLat != null && userLng != null) points.push([userLat, userLng]);
     if (points.length === 0) {
       map.setView([YALE_CAMPUS.center.lat, YALE_CAMPUS.center.lng], 15);
       return;
@@ -53,7 +95,9 @@ function FitBounds({
       maxZoom: 16,
       animate: true,
     });
-  }, [halls, userLocation, map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refit on selection / location / route only
+  }, [selectedSlug, selectedLat, selectedLng, userLat, userLng, routeKey, map]);
+
   return null;
 }
 
@@ -68,7 +112,13 @@ function hallIcon(selected: boolean, open: boolean) {
   });
 }
 
-export function CampusMap({ halls, selectedSlug, userLocation, onSelect }: Props) {
+export function CampusMap({
+  halls,
+  selectedSlug,
+  userLocation,
+  routeCoordinates,
+  onSelect,
+}: Props) {
   const icons = useMemo(() => {
     return new Map(
       halls.map((row) => [
@@ -91,9 +141,26 @@ export function CampusMap({ halls, selectedSlug, userLocation, onSelect }: Props
     >
       <TileLayer
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-        attribution="Tiles &copy; Esri"
+        attribution="Tiles &copy; Esri · Routing &copy; OSRM"
       />
-      <FitBounds halls={halls} userLocation={userLocation} />
+      <FocusSelection
+        halls={halls}
+        selectedSlug={selectedSlug}
+        userLocation={userLocation}
+        routeCoordinates={routeCoordinates}
+      />
+      {routeCoordinates && routeCoordinates.length > 1 ? (
+        <Polyline
+          positions={routeCoordinates}
+          pathOptions={{
+            color: "#F2B705",
+            weight: 4,
+            opacity: 0.9,
+            lineCap: "round",
+            lineJoin: "round",
+          }}
+        />
+      ) : null}
       {userLocation ? (
         <CircleMarker
           center={[userLocation.lat, userLocation.lng]}

@@ -51,6 +51,14 @@ export function NearHallApp() {
   const [data, setData] = useState<MenusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [routeCoordinates, setRouteCoordinates] = useState<
+    [number, number][] | null
+  >(null);
+  const [walkSummary, setWalkSummary] = useState<{
+    distanceMeters: number;
+    durationSeconds: number;
+    source: "osrm" | "straight";
+  } | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function useCampusFallback(reason: string) {
@@ -160,6 +168,51 @@ export function NearHallApp() {
     [data, selectedSlug],
   );
 
+  useEffect(() => {
+    if (!selected || !userLocation) {
+      setRouteCoordinates(null);
+      setWalkSummary(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      fromLat: String(userLocation.lat),
+      fromLng: String(userLocation.lng),
+      toLat: String(selected.hall.latitude),
+      toLng: String(selected.hall.longitude),
+    });
+
+    fetch(`/api/route?${params.toString()}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("route failed");
+        return res.json() as Promise<{
+          source: "osrm" | "straight";
+          distanceMeters: number;
+          durationSeconds: number;
+          coordinates: [number, number][];
+        }>;
+      })
+      .then((json) => {
+        setRouteCoordinates(json.coordinates);
+        setWalkSummary({
+          distanceMeters: json.distanceMeters,
+          durationSeconds: json.durationSeconds,
+          source: json.source,
+        });
+      })
+      .catch((err) => {
+        if ((err as Error).name === "AbortError") return;
+        setRouteCoordinates([
+          [userLocation.lat, userLocation.lng],
+          [selected.hall.latitude, selected.hall.longitude],
+        ]);
+        setWalkSummary(null);
+      });
+
+    return () => controller.abort();
+  }, [selected, userLocation]);
+
   return (
     <div className="relative min-h-dvh overflow-hidden bg-[#0b1f33] text-[#f7f3ea]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(242,183,5,0.18),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(61,125,168,0.25),transparent_45%)]" />
@@ -197,10 +250,13 @@ export function NearHallApp() {
             halls={data?.halls ?? []}
             selectedSlug={selectedSlug}
             userLocation={userLocation}
+            routeCoordinates={routeCoordinates}
             onSelect={setSelectedSlug}
           />
           <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-[#0b1f33]/80 px-2 py-1 text-xs text-[#d7e0ea] backdrop-blur">
-            New Haven map · sorted by proximity
+            {walkSummary
+              ? `Walk ~${formatWalkMinutes(walkSummary.durationSeconds)} · ${formatDistance(walkSummary.distanceMeters)}`
+              : "New Haven map · sorted by proximity"}
           </div>
         </section>
 
@@ -300,7 +356,9 @@ export function NearHallApp() {
                   </div>
                   <div className="text-[#b8c7d6]">{selected.hall.hoursLabel}</div>
                   <div className="text-[#f2b705]">
-                    {formatDistance(selected.distanceMeters)}
+                    {walkSummary
+                      ? `${formatWalkMinutes(walkSummary.durationSeconds)} walk · ${formatDistance(walkSummary.distanceMeters)}`
+                      : formatDistance(selected.distanceMeters)}
                   </div>
                 </div>
               </div>
@@ -384,6 +442,11 @@ function DishList({
       ))}
     </ul>
   );
+}
+
+function formatWalkMinutes(seconds: number): string {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return `${minutes} min`;
 }
 
 function EmptyState({ query }: { query: string }) {

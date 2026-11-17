@@ -273,8 +273,8 @@ export function NearHallApp() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-3 px-4 pb-3 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
-        <section className="relative h-[34vh] min-h-[220px] overflow-hidden border border-[#f7f3ea]/20 lg:h-full lg:min-h-0">
+      <main className="relative z-10 mx-auto grid min-h-0 w-full max-w-7xl flex-1 grid-rows-[minmax(200px,32vh)_minmax(0,1fr)] gap-3 px-4 pb-3 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:grid-rows-none lg:gap-4">
+        <section className="relative min-h-0 overflow-hidden border border-[#f7f3ea]/20 lg:h-full">
           <div className="absolute inset-0">
             <CampusMap
               halls={data?.halls ?? []}
@@ -292,7 +292,7 @@ export function NearHallApp() {
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain lg:overflow-hidden">
+        <section className="flex min-h-0 flex-col gap-2 overflow-hidden sm:gap-3">
           {SOCIAL_ENABLED ? (
             <SocialPanel
               meal={meal}
@@ -306,7 +306,7 @@ export function NearHallApp() {
             />
           ) : null}
 
-          <div className="shrink-0 space-y-2 border border-[#f7f3ea]/15 bg-[#10263d]/80 p-3 backdrop-blur sm:space-y-3 sm:p-4">
+          <div className="shrink-0 space-y-2 border border-[#f7f3ea]/15 bg-[#10263d]/80 p-2.5 backdrop-blur sm:space-y-3 sm:p-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8fa3b8]" />
               <Input
@@ -401,8 +401,8 @@ export function NearHallApp() {
             </div>
           ) : null}
 
-          {/* Fixed min height ≈ 3 compact HallRows so the list never collapses. */}
-          <div className="h-[16.5rem] min-h-[16.5rem] shrink-0 space-y-2 overflow-y-auto overscroll-contain pr-1 lg:h-auto lg:min-h-[16.5rem] lg:flex-1 lg:basis-[16.5rem]">
+          {/* Prefer ~3 hall rows when the Friends dropdown is closed; may shrink when open. */}
+          <div className="min-h-0 flex-1 basis-[12rem] space-y-2 overflow-y-auto overscroll-contain pr-1">
             {(data?.halls ?? []).length === 0 && !isPending ? (
               <EmptyState query={query} openOnly={openOnly && isToday} meal={meal} />
             ) : null}
@@ -425,7 +425,7 @@ export function NearHallApp() {
           </div>
 
           {selected ? (
-            <div className="flex max-h-[min(28vh,15rem)] min-h-0 shrink-[2] flex-col overflow-hidden border border-[#f2b705]/35 bg-[#10263d] lg:flex-1">
+            <div className="flex max-h-[38%] min-h-0 shrink-0 flex-col overflow-hidden border border-[#f2b705]/35 bg-[#10263d]">
               <div className="shrink-0 space-y-2 border-b border-[#f7f3ea]/10 p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>

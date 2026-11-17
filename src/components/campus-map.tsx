@@ -12,7 +12,7 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { HallMenu } from "@/lib/types";
-import { YALE_CAMPUS } from "@/lib/geo";
+import { NEW_HAVEN_BOUNDS, YALE_CAMPUS } from "@/lib/geo";
 
 type Props = {
   halls: HallMenu[];
@@ -20,6 +20,11 @@ type Props = {
   userLocation: { lat: number; lng: number } | null;
   onSelect: (slug: string) => void;
 };
+
+const maxBounds = L.latLngBounds(
+  [NEW_HAVEN_BOUNDS.southWest.lat, NEW_HAVEN_BOUNDS.southWest.lng],
+  [NEW_HAVEN_BOUNDS.northEast.lat, NEW_HAVEN_BOUNDS.northEast.lng],
+);
 
 function FitBounds({
   halls,
@@ -43,7 +48,11 @@ function FitBounds({
       map.setView(points[0], 16);
       return;
     }
-    map.fitBounds(points, { padding: [36, 36], maxZoom: 16 });
+    map.fitBounds(points, {
+      padding: [36, 36],
+      maxZoom: 16,
+      animate: true,
+    });
   }, [halls, userLocation, map]);
   return null;
 }
@@ -73,6 +82,9 @@ export function CampusMap({ halls, selectedSlug, userLocation, onSelect }: Props
     <MapContainer
       center={[YALE_CAMPUS.center.lat, YALE_CAMPUS.center.lng]}
       zoom={15}
+      minZoom={NEW_HAVEN_BOUNDS.minZoom}
+      maxBounds={maxBounds}
+      maxBoundsViscosity={1}
       className="h-full w-full"
       zoomControl={false}
       attributionControl

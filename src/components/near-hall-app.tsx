@@ -6,7 +6,12 @@ import { LocateFixed, MapPin, Search, UtensilsCrossed } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatDistance, isLikelyOnCampus } from "@/lib/geo";
+import {
+  formatDistance,
+  isInNewHaven,
+  isLikelyOnCampus,
+  YALE_CAMPUS,
+} from "@/lib/geo";
 import { inferMealPeriod } from "@/lib/hours";
 import type { HallMenu, MealPeriod, MenusResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -37,18 +42,44 @@ export function NearHallApp() {
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lng: number;
-  } | null>(null);
-  const [locationNote, setLocationNote] = useState<string | null>(null);
+  } | null>(YALE_CAMPUS.center);
+  const [locationMode, setLocationMode] = useState<"gps" | "campus">("campus");
+  const [locationNote, setLocationNote] = useState<string | null>(
+    "Sorted from central campus — tap Locate me for your GPS.",
+  );
+  const [locating, setLocating] = useState(false);
   const [data, setData] = useState<MenusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  function useCampusFallback(reason: string) {
+    setUserLocation(YALE_CAMPUS.center);
+    setLocationMode("campus");
+    setLocationNote(reason);
+    setLocating(false);
+  }
+
   function locate() {
-    if (!navigator.geolocation) {
-      setLocationNote("Geolocation is not available in this browser.");
+    if (typeof window === "undefined") return;
+
+    if (!window.isSecureContext) {
+      useCampusFallback(
+        "Location needs HTTPS (or localhost). Using central campus instead.",
+      );
       return;
     }
+
+    if (!navigator.geolocation) {
+      useCampusFallback(
+        "This browser has no geolocation. Using central campus instead.",
+      );
+      return;
+    }
+
+    setLocating(true);
+    setLocationNote("Asking for your location…");
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const next = {
@@ -56,22 +87,36 @@ export function NearHallApp() {
           lng: pos.coords.longitude,
         };
         setUserLocation(next);
-        setLocationNote(
-          isLikelyOnCampus(next)
-            ? "Using your location on / near central campus."
-            : "Location found. Sorting by distance (you may be off central campus).",
+        setLocationMode("gps");
+        setLocating(false);
+        if (!isInNewHaven(next)) {
+          setLocationNote(
+            "GPS found, but you’re outside New Haven — still sorting by distance.",
+          );
+        } else if (isLikelyOnCampus(next)) {
+          setLocationNote("Using your location on / near central campus.");
+        } else {
+          setLocationNote("Using your GPS location in New Haven.");
+        }
+      },
+      (err) => {
+        const denied = err.code === err.PERMISSION_DENIED;
+        useCampusFallback(
+          denied
+            ? "Location permission denied — using central campus. Allow location and tap again."
+            : "Couldn’t get GPS — using central campus. Check location settings and tap again.",
         );
       },
-      () => {
-        setLocationNote(
-          "Location blocked — sorting by name. Enable location for nearest halls.",
-        );
+      {
+        enableHighAccuracy: false,
+        timeout: 12000,
+        maximumAge: 60_000,
       },
-      { enableHighAccuracy: true, timeout: 8000 },
     );
   }
 
   useEffect(() => {
+    // Auto-try GPS once; campus center already seeds distances if it fails.
     locate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -128,14 +173,22 @@ export function NearHallApp() {
             Find the closest Yale dining hall open now — and what it’s serving.
           </p>
         </div>
-        <Button
-          variant="secondary"
-          className="shrink-0 bg-[#f7f3ea] text-[#0b1f33] hover:bg-white"
-          onClick={locate}
-        >
-          <LocateFixed className="size-4" />
-          Locate me
-        </Button>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <button
+            type="button"
+            disabled={locating}
+            onClick={locate}
+            className="inline-flex h-9 items-center gap-1.5 bg-[#f7f3ea] px-3 text-sm font-medium text-[#0b1f33] transition hover:bg-white disabled:opacity-60"
+          >
+            <LocateFixed className={cn("size-4", locating && "animate-pulse")} />
+            {locating ? "Locating…" : "Locate me"}
+          </button>
+          {locationNote ? (
+            <p className="max-w-[16rem] text-right text-xs text-[#b8c7d6]">
+              {locationMode === "gps" ? "GPS" : "Campus pin"} · {locationNote}
+            </p>
+          ) : null}
+        </div>
       </header>
 
       <main className="relative z-10 mx-auto grid min-h-[calc(100dvh-7.5rem)] w-full max-w-7xl gap-4 px-4 pb-6 sm:px-6 lg:grid-cols-[1.15fr_0.85fr]">
@@ -147,7 +200,7 @@ export function NearHallApp() {
             onSelect={setSelectedSlug}
           />
           <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-[#0b1f33]/80 px-2 py-1 text-xs text-[#d7e0ea] backdrop-blur">
-            Campus map · sorted by proximity
+            New Haven map · sorted by proximity
           </div>
         </section>
 
@@ -193,7 +246,6 @@ export function NearHallApp() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs text-[#b8c7d6]">
-              {locationNote ? <span>{locationNote}</span> : null}
               {data?.source === "sample" ? (
                 <Badge variant="secondary" className="bg-[#c45c26] text-white">
                   Sample data

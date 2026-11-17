@@ -1,8 +1,18 @@
-/** Yale central campus approx. bounds — used to soft-limit “on campus” UX. */
+/** Yale central campus approx. — default pin when GPS is unavailable. */
 export const YALE_CAMPUS = {
   center: { lat: 41.3111, lng: -72.9267 },
   /** ~1.6 miles — keeps New Haven core, excludes West Campus by default filter. */
   radiusMeters: 2600,
+} as const;
+
+/**
+ * Approximate New Haven city bbox for Leaflet maxBounds.
+ * Keeps the map from zooming out to the whole world (fewer wasted tiles).
+ */
+export const NEW_HAVEN_BOUNDS = {
+  southWest: { lat: 41.255, lng: -72.995 },
+  northEast: { lat: 41.355, lng: -72.86 },
+  minZoom: 12,
 } as const;
 
 export function haversineMeters(
@@ -29,4 +39,13 @@ export function formatDistance(meters: number | null): string {
 
 export function isLikelyOnCampus(point: { lat: number; lng: number }): boolean {
   return haversineMeters(point, YALE_CAMPUS.center) <= YALE_CAMPUS.radiusMeters;
+}
+
+export function isInNewHaven(point: { lat: number; lng: number }): boolean {
+  return (
+    point.lat >= NEW_HAVEN_BOUNDS.southWest.lat &&
+    point.lat <= NEW_HAVEN_BOUNDS.northEast.lat &&
+    point.lng >= NEW_HAVEN_BOUNDS.southWest.lng &&
+    point.lng <= NEW_HAVEN_BOUNDS.northEast.lng
+  );
 }

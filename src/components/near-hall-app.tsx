@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  SocialPanel,
+  type FriendCheckin,
+} from "@/components/social-panel";
+import {
   formatDistance,
   isInNewHaven,
   isLikelyOnCampus,
@@ -15,6 +19,7 @@ import {
 import { menuDayOptions, todayEasternIso } from "@/lib/dates";
 import { inferMealPeriod } from "@/lib/hours";
 import { formatNutrient, NUTRITION_FACT_ROWS } from "@/lib/nutrition";
+import { SOCIAL_ENABLED } from "@/lib/social/config";
 import type { HallMenu, MealPeriod, MenuDish, MenusResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -67,7 +72,18 @@ export function NearHallApp() {
   } | null>(null);
   const [showNutrition, setShowNutrition] = useState(false);
   const [expandedDishId, setExpandedDishId] = useState<string | null>(null);
+  const [friendCheckins, setFriendCheckins] = useState<FriendCheckin[]>([]);
   const [isPending, startTransition] = useTransition();
+
+  const checkinsByHall = useMemo(() => {
+    const map = new Map<string, FriendCheckin[]>();
+    for (const checkin of friendCheckins) {
+      const list = map.get(checkin.hallSlug) ?? [];
+      list.push(checkin);
+      map.set(checkin.hallSlug, list);
+    }
+    return map;
+  }, [friendCheckins]);
 
   function useCampusFallback(reason: string) {
     setUserLocation(YALE_CAMPUS.center);
@@ -275,6 +291,19 @@ export function NearHallApp() {
         </section>
 
         <section className="flex min-h-0 flex-col gap-3 overflow-hidden">
+          {SOCIAL_ENABLED ? (
+            <SocialPanel
+              meal={meal}
+              menuDate={menuDate}
+              selectedHall={
+                selected
+                  ? { slug: selected.hall.slug, name: selected.hall.name }
+                  : null
+              }
+              onCheckinsChange={setFriendCheckins}
+            />
+          ) : null}
+
           <div className="shrink-0 space-y-3 border border-[#f7f3ea]/15 bg-[#10263d]/80 p-3 backdrop-blur sm:p-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8fa3b8]" />
@@ -386,6 +415,7 @@ export function NearHallApp() {
                     ? walkSummary.distanceMeters
                     : row.distanceMeters
                 }
+                friendCheckins={checkinsByHall.get(row.hall.slug) ?? []}
                 onSelect={() => setSelectedSlug(row.hall.slug)}
               />
             ))}
@@ -455,18 +485,24 @@ function HallRow({
   active,
   query,
   distanceMeters,
+  friendCheckins,
   onSelect,
 }: {
   row: HallMenu;
   active: boolean;
   query: string;
   distanceMeters: number | null;
+  friendCheckins: FriendCheckin[];
   onSelect: () => void;
 }) {
   const preview = (query ? row.matchingDishes : row.dishes)
     .slice(0, 3)
     .map((d) => d.name)
     .join(" · ");
+  const friendLabel = friendCheckins
+    .slice(0, 3)
+    .map((c) => (c.isSelf ? "You" : c.displayName))
+    .join(", ");
 
   return (
     <button
@@ -493,6 +529,12 @@ function HallRow({
       <p className="mt-2 line-clamp-2 text-sm text-[#c5d2df]">
         {preview || "No dishes listed for this meal."}
       </p>
+      {friendCheckins.length > 0 ? (
+        <p className="mt-1 text-xs text-[#f2b705]">
+          Friends here: {friendLabel}
+          {friendCheckins.length > 3 ? ` +${friendCheckins.length - 3}` : ""}
+        </p>
+      ) : null}
     </button>
   );
 }

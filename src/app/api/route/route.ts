@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { haversineMeters } from "@/lib/geo";
+import { haversineMeters, pathLengthMeters } from "@/lib/geo";
 
 type LatLng = { lat: number; lng: number };
 type RouteSource = "valhalla" | "straight";
@@ -39,12 +39,17 @@ function parsePoint(latRaw: string | null, lngRaw: string | null): LatLng | null
   return { lat, lng };
 }
 
+function walkSeconds(meters: number) {
+  // ~3.0 mph urban campus walking
+  return Math.round(meters / 1.34);
+}
+
 function straightFallback(from: LatLng, to: LatLng) {
   const meters = haversineMeters(from, to);
   return {
     source: "straight" as const,
     distanceMeters: meters,
-    durationSeconds: Math.round(meters / 1.35),
+    durationSeconds: walkSeconds(meters),
     coordinates: [
       [from.lat, from.lng],
       [to.lat, to.lng],
@@ -58,7 +63,12 @@ function payload(
   durationSeconds: number,
   coordinates: [number, number][],
 ) {
-  return { source, distanceMeters, durationSeconds, coordinates };
+  return {
+    source,
+    distanceMeters: Math.round(distanceMeters),
+    durationSeconds,
+    coordinates,
+  };
 }
 
 async function fetchValhallaRoute(from: LatLng, to: LatLng) {
@@ -76,8 +86,7 @@ async function fetchValhallaRoute(from: LatLng, to: LatLng) {
       costing: "pedestrian",
       costing_options: {
         pedestrian: {
-          walking_speed: 5.1,
-          // Prefer footways / shorter campus cuts over long street loops.
+          walking_speed: 4.8,
           walkway_factor: 0.8,
           alley_factor: 0.9,
           driveway_factor: 0.9,
@@ -87,7 +96,7 @@ async function fetchValhallaRoute(from: LatLng, to: LatLng) {
       },
       directions_options: { units: "kilometers" },
     }),
-    next: { revalidate: 300 },
+    cache: "no-store",
   });
 
   if (!res.ok) throw new Error(`Valhalla ${res.status}`);
@@ -99,16 +108,23 @@ async function fetchValhallaRoute(from: LatLng, to: LatLng) {
     };
   };
 
-  const summary = data.trip?.summary;
   const shape = data.trip?.legs?.[0]?.shape;
-  if (!summary?.length || !shape) throw new Error("Valhalla empty route");
+  if (!shape) throw new Error("Valhalla empty route");
 
-  const coordinates = decodePolyline6(shape);
-  if (coordinates.length < 2) throw new Error("Valhalla bad geometry");
+  const shapeCoords = decodePolyline6(shape);
+  if (shapeCoords.length < 2) throw new Error("Valhalla bad geometry");
+
+  // Measure the path we actually draw: real endpoints + router shape.
+  const coordinates: [number, number][] = [
+    [from.lat, from.lng],
+    ...shapeCoords,
+    [to.lat, to.lng],
+  ];
+  const distanceMeters = pathLengthMeters(coordinates);
 
   return {
-    distanceMeters: summary.length * 1000,
-    durationSeconds: summary.time ?? Math.round((summary.length * 1000) / 1.35),
+    distanceMeters,
+    durationSeconds: walkSeconds(distanceMeters),
     coordinates,
   };
 }

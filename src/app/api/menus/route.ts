@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { haversineMeters } from "@/lib/geo";
+import { estimateWalkMeters, haversineMeters } from "@/lib/geo";
 import { inferMealPeriod } from "@/lib/hours";
 import { sampleHallMenus } from "@/lib/sample-data";
 import {
@@ -38,9 +38,11 @@ export async function GET(request: NextRequest) {
             ? dishes.filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
             : dishes;
           const distanceMeters = hasUserLocation
-            ? haversineMeters(
-                { lat, lng },
-                { lat: hall.latitude, lng: hall.longitude },
+            ? estimateWalkMeters(
+                haversineMeters(
+                  { lat, lng },
+                  { lat: hall.latitude, lng: hall.longitude },
+                ),
               )
             : null;
           return {
@@ -80,9 +82,11 @@ export async function GET(request: NextRequest) {
     const halls = sampleHallMenus(meal, query).map((row) => ({
       ...row,
       distanceMeters: hasUserLocation
-        ? haversineMeters(
-            { lat, lng },
-            { lat: row.hall.latitude, lng: row.hall.longitude },
+        ? estimateWalkMeters(
+            haversineMeters(
+              { lat, lng },
+              { lat: row.hall.latitude, lng: row.hall.longitude },
+            ),
           )
         : null,
     }));

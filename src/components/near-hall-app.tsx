@@ -334,6 +334,11 @@ export function NearHallApp() {
                 row={row}
                 active={row.hall.slug === selectedSlug}
                 query={query}
+                distanceMeters={
+                  row.hall.slug === selectedSlug && walkSummary
+                    ? walkSummary.distanceMeters
+                    : row.distanceMeters
+                }
                 onSelect={() => setSelectedSlug(row.hall.slug)}
               />
             ))}
@@ -379,11 +384,13 @@ function HallRow({
   row,
   active,
   query,
+  distanceMeters,
   onSelect,
 }: {
   row: HallMenu;
   active: boolean;
   query: string;
+  distanceMeters: number | null;
   onSelect: () => void;
 }) {
   const preview = (query ? row.matchingDishes : row.dishes)
@@ -410,7 +417,7 @@ function HallRow({
           </div>
         </div>
         <div className="shrink-0 text-sm text-[#f2b705]">
-          {formatDistance(row.distanceMeters)}
+          {formatDistance(distanceMeters)}
         </div>
       </div>
       <p className="mt-2 line-clamp-2 text-sm text-[#c5d2df]">

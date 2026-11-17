@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Users } from "lucide-react";
+import { ChevronDown, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SOCIAL_ENABLED } from "@/lib/social/config";
 import type { MealPeriod } from "@/lib/types";
@@ -58,6 +58,8 @@ export function SocialPanel({
   const [note, setNote] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Collapsed by default so the dining-hall list keeps room for ≥3 options.
+  const [open, setOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const res = await fetch(
@@ -175,21 +177,43 @@ export function SocialPanel({
     }
   }
 
+  const summary = user
+    ? `${user.displayName} · ${friends.length} friend${friends.length === 1 ? "" : "s"} · ${checkins.length} eating`
+    : "Sign in to mark where you’re eating";
+
   return (
-    <section className="max-h-[min(28vh,15rem)] shrink-0 overflow-y-auto overscroll-contain border border-[#f7f3ea]/15 bg-[#10263d]/80 p-3 backdrop-blur sm:p-4">
-      <div className="mb-2 flex items-center gap-2 text-[#f2b705]">
-        <Users className="size-4" />
-        <h3 className="font-[family-name:var(--font-display)] text-lg">Friends</h3>
-        <span className="rounded border border-[#f2b705]/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+    <section
+      className={cn(
+        "shrink-0 border border-[#f7f3ea]/15 bg-[#10263d]/80 backdrop-blur",
+        open && "max-h-[min(26vh,13.5rem)] overflow-y-auto overscroll-contain",
+      )}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left sm:px-4"
+      >
+        <Users className="size-4 shrink-0 text-[#f2b705]" />
+        <h3 className="font-[family-name:var(--font-display)] text-lg text-[#f2b705]">
+          Friends
+        </h3>
+        <span className="rounded border border-[#f2b705]/40 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[#f2b705]">
           Demo
         </span>
-      </div>
+        <span className="ml-auto truncate text-xs text-[#b8c7d6]">{summary}</span>
+        <ChevronDown
+          className={cn(
+            "size-4 shrink-0 text-[#f2b705] transition",
+            open && "rotate-180",
+          )}
+        />
+      </button>
 
-      {!user ? (
-        <form onSubmit={submitAuth} className="space-y-2">
-          <p className="text-xs text-[#b8c7d6]">
-            Sign in to add friends and mark where you’re eating. Flip{" "}
-            <code className="text-[#f2b705]">SOCIAL_ENABLED</code> to disable later.
+      {!open ? null : !user ? (
+        <form onSubmit={submitAuth} className="space-y-2 border-t border-[#f7f3ea]/10 px-3 pb-3 sm:px-4">
+          <p className="pt-2 text-xs text-[#b8c7d6]">
+            Sign in to add friends and mark where you’re eating.
           </p>
           <div className="flex gap-2 text-xs">
             <button
@@ -245,8 +269,8 @@ export function SocialPanel({
           </button>
         </form>
       ) : (
-        <div className="space-y-3 text-sm">
-          <div className="flex items-start justify-between gap-2">
+        <div className="space-y-3 border-t border-[#f7f3ea]/10 px-3 pb-3 text-sm sm:px-4">
+          <div className="flex items-start justify-between gap-2 pt-2">
             <div>
               <p className="text-[#f7f3ea]">{user.displayName}</p>
               <p className="text-xs text-[#9eb0c2]">@{user.username}</p>
@@ -347,7 +371,9 @@ export function SocialPanel({
         </div>
       )}
 
-      {message ? <p className="mt-2 text-xs text-[#f2b705]">{message}</p> : null}
+      {open && message ? (
+        <p className="px-3 pb-3 text-xs text-[#f2b705] sm:px-4">{message}</p>
+      ) : null}
     </section>
   );
 }

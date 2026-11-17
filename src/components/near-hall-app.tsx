@@ -401,8 +401,8 @@ export function NearHallApp() {
             </div>
           ) : null}
 
-          {/* Keep at least ~3 hall rows visible between Friends and the detail panel. */}
-          <div className="min-h-[14.5rem] flex-1 basis-[14.5rem] space-y-2 overflow-y-auto overscroll-contain pr-1">
+          {/* Fixed min height ≈ 3 compact HallRows so the list never collapses. */}
+          <div className="h-[16.5rem] min-h-[16.5rem] shrink-0 space-y-2 overflow-y-auto overscroll-contain pr-1 lg:h-auto lg:min-h-[16.5rem] lg:flex-1 lg:basis-[16.5rem]">
             {(data?.halls ?? []).length === 0 && !isPending ? (
               <EmptyState query={query} openOnly={openOnly && isToday} meal={meal} />
             ) : null}
@@ -425,7 +425,7 @@ export function NearHallApp() {
           </div>
 
           {selected ? (
-            <div className="flex max-h-[min(32vh,18rem)] min-h-0 shrink-[2] flex-col overflow-hidden border border-[#f2b705]/35 bg-[#10263d]">
+            <div className="flex max-h-[min(28vh,15rem)] min-h-0 shrink-[2] flex-col overflow-hidden border border-[#f2b705]/35 bg-[#10263d] lg:flex-1">
               <div className="shrink-0 space-y-2 border-b border-[#f7f3ea]/10 p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>

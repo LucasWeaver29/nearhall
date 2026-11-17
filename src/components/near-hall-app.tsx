@@ -214,16 +214,16 @@ export function NearHallApp() {
   }, [selected, userLocation]);
 
   return (
-    <div className="relative min-h-dvh overflow-hidden bg-[#0b1f33] text-[#f7f3ea]">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-[#0b1f33] text-[#f7f3ea]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(242,183,5,0.18),transparent_40%),radial-gradient(ellipse_at_bottom_right,rgba(61,125,168,0.25),transparent_45%)]" />
 
-      <header className="relative z-20 mx-auto flex w-full max-w-7xl items-end justify-between gap-4 px-4 pb-3 pt-5 sm:px-6">
-        <div>
-          <p className="font-[family-name:var(--font-display)] text-4xl tracking-tight text-[#f2b705] sm:text-5xl">
+      <header className="relative z-20 mx-auto flex w-full max-w-7xl shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6">
+        <div className="min-w-0">
+          <p className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-[#f2b705] sm:text-4xl">
             NearHall
           </p>
-          <p className="mt-1 max-w-xl text-sm text-[#d7e0ea] sm:text-base">
-            Find the closest Yale dining hall open now — and what it’s serving.
+          <p className="mt-0.5 truncate text-sm text-[#d7e0ea]">
+            Closest Yale dining — open now, on the menu.
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
@@ -237,15 +237,15 @@ export function NearHallApp() {
             {locating ? "Locating…" : "Locate me"}
           </button>
           {locationNote ? (
-            <p className="max-w-[16rem] text-right text-xs text-[#b8c7d6]">
+            <p className="hidden max-w-[16rem] text-right text-xs text-[#b8c7d6] sm:block">
               {locationMode === "gps" ? "GPS" : "Campus pin"} · {locationNote}
             </p>
           ) : null}
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto grid min-h-[calc(100dvh-7.5rem)] w-full max-w-7xl gap-4 px-4 pb-6 sm:px-6 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="relative min-h-[46vh] overflow-hidden rounded-none border border-[#f7f3ea]/20 lg:min-h-0">
+      <main className="relative z-10 mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-3 px-4 pb-3 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
+        <section className="relative h-[34vh] min-h-[220px] overflow-hidden border border-[#f7f3ea]/20 lg:h-auto lg:min-h-0">
           <CampusMap
             halls={data?.halls ?? []}
             selectedSlug={selectedSlug}
@@ -260,8 +260,8 @@ export function NearHallApp() {
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col gap-3">
-          <div className="space-y-3 border border-[#f7f3ea]/15 bg-[#10263d]/80 p-3 backdrop-blur sm:p-4">
+        <section className="flex min-h-0 flex-col gap-3 overflow-hidden">
+          <div className="shrink-0 space-y-3 border border-[#f7f3ea]/15 bg-[#10263d]/80 p-3 backdrop-blur sm:p-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8fa3b8]" />
               <Input
@@ -317,12 +317,12 @@ export function NearHallApp() {
           </div>
 
           {error ? (
-            <div className="border border-red-300/40 bg-red-950/40 p-3 text-sm text-red-100">
+            <div className="shrink-0 border border-red-300/40 bg-red-950/40 p-3 text-sm text-red-100">
               {error}
             </div>
           ) : null}
 
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
             {(data?.halls ?? []).length === 0 && !isPending ? (
               <EmptyState query={query} />
             ) : null}
@@ -339,10 +339,10 @@ export function NearHallApp() {
           </div>
 
           {selected ? (
-            <div className="border border-[#f2b705]/35 bg-[#10263d] p-3 sm:p-4">
+            <div className="max-h-[28vh] shrink-0 overflow-y-auto border border-[#f2b705]/35 bg-[#10263d] p-3 sm:p-4">
               <div className="mb-2 flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="font-[family-name:var(--font-display)] text-2xl text-[#f2b705]">
+                  <h2 className="font-[family-name:var(--font-display)] text-xl text-[#f2b705] sm:text-2xl">
                     {selected.hall.name}
                   </h2>
                   <p className="mt-1 flex items-center gap-1 text-sm text-[#b8c7d6]">
@@ -434,7 +434,7 @@ function DishList({
     );
   }
   return (
-    <ul className="grid max-h-40 gap-1 overflow-y-auto text-sm sm:grid-cols-2">
+    <ul className="grid max-h-28 gap-1 overflow-y-auto text-sm sm:grid-cols-2">
       {dishes.slice(0, 24).map((dish) => (
         <li key={`${dish.station}-${dish.name}`} className="text-[#e8eef4]">
           <span className="text-[#f2b705]">•</span> {dish.name}

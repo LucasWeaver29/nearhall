@@ -24,9 +24,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${display.variable} ${sans.variable} h-full antialiased`}
+      className={`${display.variable} ${sans.variable} h-dvh overflow-hidden antialiased`}
     >
-      <body className="min-h-full font-sans">{children}</body>
+      <body className="h-dvh overflow-hidden font-sans">{children}</body>
     </html>
   );
 }

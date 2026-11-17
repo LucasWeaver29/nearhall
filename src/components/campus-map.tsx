@@ -28,6 +28,23 @@ const maxBounds = L.latLngBounds(
   [NEW_HAVEN_BOUNDS.northEast.lat, NEW_HAVEN_BOUNDS.northEast.lng],
 );
 
+function InvalidateOnResize() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const resize = () => map.invalidateSize({ animate: false });
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(container);
+    window.addEventListener("resize", resize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", resize);
+    };
+  }, [map]);
+  return null;
+}
+
 function FocusSelection({
   halls,
   selectedSlug,
@@ -143,6 +160,7 @@ export function CampusMap({
         url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
         attribution="Tiles &copy; Esri · Routing &copy; OSRM"
       />
+      <InvalidateOnResize />
       <FocusSelection
         halls={halls}
         selectedSlug={selectedSlug}

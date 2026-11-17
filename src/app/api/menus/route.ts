@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clampMenuDate } from "@/lib/dates";
 import { estimateWalkMeters, haversineMeters } from "@/lib/geo";
-import { inferMealPeriod, withMealContext } from "@/lib/hours";
+import { hallServesMeal, inferMealPeriod, withMealContext } from "@/lib/hours";
 import { sampleHallMenus } from "@/lib/sample-data";
 import { fetchDiningHalls, fetchHallMenu } from "@/lib/nutrislice";
 import type { HallMenu, MealPeriod } from "@/lib/types";
@@ -26,8 +26,9 @@ export async function GET(request: NextRequest) {
       withMealContext(hall, meal, date),
     );
     const filtered = halls.filter((hall) => {
-      if (openOnly && !hall.openNow) return false;
       if (campusOnly && hall.slug === "west-campus") return false;
+      if (!hallServesMeal(hall, meal)) return false;
+      if (openOnly && !hall.openNow) return false;
       return true;
     });
 

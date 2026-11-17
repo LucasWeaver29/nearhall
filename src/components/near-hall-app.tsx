@@ -319,24 +319,34 @@ export function NearHallApp() {
                       ? "bg-[#f2b705] text-[#0b1f33] hover:bg-[#ffc933]"
                       : "border-[#f7f3ea]/25 bg-transparent text-[#f7f3ea] hover:bg-[#f7f3ea]/10",
                   )}
-                  onClick={() => setMeal(item.id)}
+                  onClick={() => {
+                    setMeal(item.id);
+                    // Don't carry an Open now filter across meals (lunch after dinner
+                    // would hide almost every hall).
+                    setOpenOnly(false);
+                  }}
                 >
                   {item.label}
                 </Button>
               ))}
-              <Button
-                size="sm"
-                variant="outline"
+              <button
+                type="button"
                 disabled={!isToday}
+                aria-pressed={openOnly && isToday}
                 className={cn(
-                  "border-[#f7f3ea]/25 bg-transparent text-[#f7f3ea] hover:bg-[#f7f3ea]/10",
-                  openOnly && isToday && "bg-[#f7f3ea]/15",
-                  !isToday && "opacity-40",
+                  "inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] border px-2.5 text-[0.8rem] font-medium transition",
+                  openOnly && isToday
+                    ? "border-[#f2b705] bg-[#f2b705] text-[#0b1f33]"
+                    : "border-[#f7f3ea]/25 bg-transparent text-[#f7f3ea] hover:bg-[#f7f3ea]/10",
+                  !isToday && "cursor-not-allowed opacity-40",
                 )}
-                onClick={() => setOpenOnly((v) => !v)}
+                onClick={() => {
+                  if (!isToday) return;
+                  setOpenOnly((v) => !v);
+                }}
               >
-                Open now
-              </Button>
+                {openOnly && isToday ? "Serving now ✓" : "Serving now"}
+              </button>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 text-xs text-[#b8c7d6]">
@@ -362,7 +372,7 @@ export function NearHallApp() {
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
             {(data?.halls ?? []).length === 0 && !isPending ? (
-              <EmptyState query={query} />
+              <EmptyState query={query} openOnly={openOnly && isToday} meal={meal} />
             ) : null}
 
             {(data?.halls ?? []).map((row) => (
@@ -635,14 +645,24 @@ function formatWalkMinutes(seconds: number): string {
   return `${minutes} min`;
 }
 
-function EmptyState({ query }: { query: string }) {
+function EmptyState({
+  query,
+  openOnly,
+  meal,
+}: {
+  query: string;
+  openOnly: boolean;
+  meal: MealPeriod;
+}) {
   return (
     <div className="flex flex-col items-start gap-2 border border-dashed border-[#f7f3ea]/25 p-4 text-sm text-[#c5d2df]">
       <UtensilsCrossed className="size-5 text-[#f2b705]" />
       <p>
         {query
           ? `Nothing matches “${query}” for this meal. Try another dish or meal period.`
-          : "No halls returned. Check back shortly or clear filters."}
+          : openOnly
+            ? `No halls are serving ${meal} right now. Turn off “Serving now” to browse the full ${meal} list.`
+            : "No halls returned. Check back shortly or clear filters."}
       </p>
     </div>
   );

@@ -63,15 +63,15 @@ export function isOpenNow(hours: DayHours, date = new Date()): boolean {
   return now >= start && now <= end;
 }
 
+function mealLabel(meal: MealPeriod): string {
+  return meal.charAt(0).toUpperCase() + meal.slice(1);
+}
+
 export function hoursLabel(hours: DayHours, meal?: MealPeriod): string {
   if (!hours.enabled) return meal ? `${mealLabel(meal)} closed` : "Closed today";
   if (hours.is24Hours) return "Open 24 hours";
   const range = `${formatClock(hours.start)} – ${formatClock(hours.end)}`;
   return meal ? `${mealLabel(meal)} ${range}` : range;
-}
-
-function mealLabel(meal: MealPeriod): string {
-  return meal.charAt(0).toUpperCase() + meal.slice(1);
 }
 
 export function inferMealPeriod(date = new Date()): MealPeriod {
@@ -81,11 +81,21 @@ export function inferMealPeriod(date = new Date()): MealPeriod {
   return "dinner";
 }
 
-export function resolveWeekHours(
-  hall: Pick<DiningHall, "facilityHours" | "mealHours">,
+export function hallServesMeal(
+  hall: Pick<DiningHall, "mealTypes" | "mealHours">,
   meal: MealPeriod,
-): WeekHours {
-  return hall.mealHours[meal] ?? hall.facilityHours;
+): boolean {
+  return Boolean(hall.mealHours[meal]) || hall.mealTypes.includes(meal);
+}
+
+/** Schedule used for labels / open-now for a meal. Null if this venue doesn't serve it. */
+export function resolveWeekHours(
+  hall: Pick<DiningHall, "facilityHours" | "mealHours" | "mealTypes">,
+  meal: MealPeriod,
+): WeekHours | null {
+  if (hall.mealHours[meal]) return hall.mealHours[meal]!;
+  if (hall.mealTypes.includes(meal)) return hall.facilityHours;
+  return null;
 }
 
 export function withMealContext(
@@ -95,23 +105,28 @@ export function withMealContext(
   dateIso: string = todayEasternIso(),
   now = new Date(),
 ): DiningHall {
-  const week = resolveWeekHours(hall, meal);
+  const mealWeek = resolveWeekHours(hall, meal);
+  const week = mealWeek ?? hall.facilityHours;
   const dayKey = getDayKeyForIso(dateIso);
   const dayHours = week[dayKey];
   const isToday = dateIso === todayEasternIso(now);
+  const servesMeal = hallServesMeal(hall, meal);
 
   return {
     ...hall,
     hours: week,
     openNow:
       isToday &&
+      servesMeal &&
+      mealWeek != null &&
       hall.operatingStatus !== "closed" &&
       isOpenNow(dayHours, now),
-    hoursLabel: hoursLabel(dayHours, meal),
+    hoursLabel: servesMeal
+      ? hoursLabel(dayHours, meal)
+      : `${mealLabel(meal)} hours unavailable`,
   };
 }
 
-/** @deprecated prefer withMealContext */
 export function withOpenState<
   T extends Omit<DiningHall, "openNow" | "hoursLabel" | "hours"> &
     Partial<Pick<DiningHall, "hours">>,

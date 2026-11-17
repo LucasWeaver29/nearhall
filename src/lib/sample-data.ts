@@ -90,9 +90,33 @@ const SAMPLE_MENUS: Record<string, Record<MealPeriod, string[]>> = {
 export function sampleHallMenus(meal: MealPeriod, query: string): HallMenu[] {
   const q = query.trim().toLowerCase();
   return SAMPLE_HALLS.map((h) => {
-    const dishes = (SAMPLE_MENUS[h.slug]?.[meal] ?? []).map((name) => ({
+    const dishes = (SAMPLE_MENUS[h.slug]?.[meal] ?? []).map((name, index) => ({
+      id: `${h.slug}-${meal}-${index}`,
       name,
       station: "Sample station",
+      servingSize: "1 serving",
+      ingredients: "Sample ingredients for demo mode.",
+      dietaryTags: index % 2 === 0 ? ["VG"] : ["GF"],
+      hasNutrition: true,
+      nutrition: {
+        calories: 320 + index * 40,
+        fatG: 12,
+        saturatedFatG: 4,
+        transFatG: 0,
+        cholesterolMg: 35,
+        sodiumMg: 480,
+        carbsG: 36,
+        fiberG: 4,
+        sugarG: 6,
+        addedSugarG: 2,
+        proteinG: 18,
+        potassiumMg: 400,
+        calciumMg: 80,
+        ironMg: 2,
+        vitaminCMg: 8,
+        vitaminAMcg: 120,
+        vitaminDMcg: 0,
+      },
     }));
     const matchingDishes = q
       ? dishes.filter((d) => d.name.toLowerCase().includes(q))

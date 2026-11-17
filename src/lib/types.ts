@@ -24,9 +24,35 @@ export type DiningHall = {
   hoursLabel: string;
 };
 
+export type NutritionInfo = {
+  calories: number | null;
+  fatG: number | null;
+  saturatedFatG: number | null;
+  transFatG: number | null;
+  cholesterolMg: number | null;
+  sodiumMg: number | null;
+  carbsG: number | null;
+  fiberG: number | null;
+  sugarG: number | null;
+  addedSugarG: number | null;
+  proteinG: number | null;
+  potassiumMg: number | null;
+  calciumMg: number | null;
+  ironMg: number | null;
+  vitaminCMg: number | null;
+  vitaminAMcg: number | null;
+  vitaminDMcg: number | null;
+};
+
 export type MenuDish = {
+  id: string;
   name: string;
   station: string | null;
+  servingSize: string | null;
+  ingredients: string | null;
+  dietaryTags: string[];
+  hasNutrition: boolean;
+  nutrition: NutritionInfo | null;
 };
 
 export type HallMenu = {

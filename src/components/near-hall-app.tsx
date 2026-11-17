@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { LocateFixed, MapPin, Search, UtensilsCrossed } from "lucide-react";
+import { ChevronDown, LocateFixed, MapPin, Search, UtensilsCrossed } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +14,8 @@ import {
 } from "@/lib/geo";
 import { menuDayOptions, todayEasternIso } from "@/lib/dates";
 import { inferMealPeriod } from "@/lib/hours";
-import type { HallMenu, MealPeriod, MenusResponse } from "@/lib/types";
+import { formatNutrient, NUTRITION_FACT_ROWS } from "@/lib/nutrition";
+import type { HallMenu, MealPeriod, MenuDish, MenusResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const DAY_OPTIONS = menuDayOptions();
@@ -64,6 +65,8 @@ export function NearHallApp() {
     durationSeconds: number;
     source: "valhalla" | "straight";
   } | null>(null);
+  const [showNutrition, setShowNutrition] = useState(false);
+  const [expandedDishId, setExpandedDishId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function useCampusFallback(reason: string) {
@@ -133,6 +136,10 @@ export function NearHallApp() {
     locate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setExpandedDishId(null);
+  }, [selectedSlug, menuDate, meal]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -375,33 +382,56 @@ export function NearHallApp() {
           </div>
 
           {selected ? (
-            <div className="max-h-[28vh] shrink-0 overflow-y-auto border border-[#f2b705]/35 bg-[#10263d] p-3 sm:p-4">
-              <div className="mb-2 flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="font-[family-name:var(--font-display)] text-xl text-[#f2b705] sm:text-2xl">
-                    {selected.hall.name}
-                  </h2>
-                  <p className="mt-1 flex items-center gap-1 text-sm text-[#b8c7d6]">
-                    <MapPin className="size-3.5" />
-                    {selected.hall.address}
-                  </p>
-                </div>
-                <div className="text-right text-sm">
-                  <div className={selected.hall.openNow ? "text-[#9ad37f]" : "text-[#f0a39a]"}>
-                    {selected.hall.openNow ? "Open" : "Closed"}
+            <div className="flex max-h-[42vh] shrink-0 flex-col overflow-hidden border border-[#f2b705]/35 bg-[#10263d]">
+              <div className="shrink-0 space-y-2 border-b border-[#f7f3ea]/10 p-3 sm:p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-[family-name:var(--font-display)] text-xl text-[#f2b705] sm:text-2xl">
+                      {selected.hall.name}
+                    </h2>
+                    <p className="mt-1 flex items-center gap-1 text-sm text-[#b8c7d6]">
+                      <MapPin className="size-3.5" />
+                      {selected.hall.address}
+                    </p>
                   </div>
-                  <div className="text-[#b8c7d6]">{selected.hall.hoursLabel}</div>
-                  <div className="text-[#f2b705]">
-                    {walkSummary
-                      ? `${formatWalkMinutes(walkSummary.durationSeconds)} walk · ${formatDistance(walkSummary.distanceMeters)}`
-                      : formatDistance(selected.distanceMeters)}
+                  <div className="text-right text-sm">
+                    <div className={selected.hall.openNow ? "text-[#9ad37f]" : "text-[#f0a39a]"}>
+                      {selected.hall.openNow ? "Open" : "Closed"}
+                    </div>
+                    <div className="text-[#b8c7d6]">{selected.hall.hoursLabel}</div>
+                    <div className="text-[#f2b705]">
+                      {walkSummary
+                        ? `${formatWalkMinutes(walkSummary.durationSeconds)} walk · ${formatDistance(walkSummary.distanceMeters)}`
+                        : formatDistance(selected.distanceMeters)}
+                    </div>
                   </div>
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={cn(
+                    "border-[#f7f3ea]/25 bg-transparent text-[#f7f3ea] hover:bg-[#f7f3ea]/10",
+                    showNutrition && "bg-[#f2b705]/20 text-[#f2b705]",
+                  )}
+                  onClick={() => {
+                    setShowNutrition((v) => !v);
+                    setExpandedDishId(null);
+                  }}
+                >
+                  {showNutrition ? "Hide nutrition" : "Show nutrition"}
+                </Button>
               </div>
-              <DishList
-                dishes={query ? selected.matchingDishes : selected.dishes}
-                query={query}
-              />
+              <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
+                <DishList
+                  dishes={query ? selected.matchingDishes : selected.dishes}
+                  query={query}
+                  showNutrition={showNutrition}
+                  expandedDishId={expandedDishId}
+                  onToggleDish={(id) =>
+                    setExpandedDishId((prev) => (prev === id ? null : id))
+                  }
+                />
+              </div>
             </div>
           ) : null}
         </section>
@@ -460,9 +490,15 @@ function HallRow({
 function DishList({
   dishes,
   query,
+  showNutrition,
+  expandedDishId,
+  onToggleDish,
 }: {
   dishes: HallMenu["dishes"];
   query: string;
+  showNutrition: boolean;
+  expandedDishId: string | null;
+  onToggleDish: (id: string) => void;
 }) {
   if (dishes.length === 0) {
     return (
@@ -471,14 +507,126 @@ function DishList({
       </p>
     );
   }
+
+  if (!showNutrition) {
+    return (
+      <ul className="grid gap-1 text-sm sm:grid-cols-2">
+        {dishes.slice(0, 24).map((dish) => (
+          <li key={dish.id} className="text-[#e8eef4]">
+            <span className="text-[#f2b705]">•</span> {dish.name}
+            {dish.nutrition?.calories != null ? (
+              <span className="text-[#9eb0c2]"> · {Math.round(dish.nutrition.calories)} cal</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
-    <ul className="grid max-h-28 gap-1 overflow-y-auto text-sm sm:grid-cols-2">
-      {dishes.slice(0, 24).map((dish) => (
-        <li key={`${dish.station}-${dish.name}`} className="text-[#e8eef4]">
-          <span className="text-[#f2b705]">•</span> {dish.name}
-        </li>
+    <ul className="space-y-2">
+      {dishes.slice(0, 30).map((dish) => (
+        <DishNutritionRow
+          key={dish.id}
+          dish={dish}
+          expanded={expandedDishId === dish.id}
+          onToggle={() => onToggleDish(dish.id)}
+        />
       ))}
     </ul>
+  );
+}
+
+function DishNutritionRow({
+  dish,
+  expanded,
+  onToggle,
+}: {
+  dish: MenuDish;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const canExpand = Boolean(dish.hasNutrition || dish.ingredients || dish.dietaryTags.length);
+
+  return (
+    <li className="border border-[#f7f3ea]/12 bg-[#0b1f33]/50">
+      <button
+        type="button"
+        disabled={!canExpand}
+        onClick={onToggle}
+        className="flex w-full items-start justify-between gap-3 px-3 py-2 text-left disabled:cursor-default"
+      >
+        <div className="min-w-0">
+          <div className="font-medium text-[#f7f3ea]">{dish.name}</div>
+          <div className="mt-0.5 text-xs text-[#9eb0c2]">
+            {[dish.station, dish.servingSize ? `Serving ${dish.servingSize}` : null]
+              .filter(Boolean)
+              .join(" · ") || "Menu item"}
+            {dish.nutrition?.calories != null
+              ? ` · ${Math.round(dish.nutrition.calories)} cal`
+              : dish.hasNutrition
+                ? ""
+                : " · Nutrition unavailable"}
+          </div>
+          {dish.dietaryTags.length > 0 ? (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {dish.dietaryTags.slice(0, 6).map((tag) => (
+                <span
+                  key={tag}
+                  className="border border-[#f2b705]/35 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[#f2b705]"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+        {canExpand ? (
+          <ChevronDown
+            className={cn(
+              "mt-1 size-4 shrink-0 text-[#f2b705] transition",
+              expanded && "rotate-180",
+            )}
+          />
+        ) : null}
+      </button>
+
+      {expanded ? (
+        <div className="space-y-3 border-t border-[#f7f3ea]/10 px-3 py-3">
+          {dish.nutrition ? (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#f2b705]">
+                Nutrition facts
+              </p>
+              <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs sm:grid-cols-3">
+                {NUTRITION_FACT_ROWS.map((row) => {
+                  const value = dish.nutrition?.[row.key];
+                  if (value == null) return null;
+                  return (
+                    <div key={row.key} className="flex justify-between gap-2 border-b border-[#f7f3ea]/8 py-1">
+                      <dt className="text-[#b8c7d6]">{row.label}</dt>
+                      <dd className="text-[#f7f3ea]">
+                        {formatNutrient(value, row.unit, row.digits ?? 0)}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </div>
+          ) : (
+            <p className="text-xs text-[#b8c7d6]">No nutrition panel published for this item.</p>
+          )}
+          {dish.ingredients ? (
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[#f2b705]">
+                Ingredients
+              </p>
+              <p className="text-xs leading-relaxed text-[#c5d2df]">{dish.ingredients}</p>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   );
 }
 

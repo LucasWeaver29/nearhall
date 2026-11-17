@@ -1,6 +1,13 @@
 import { parseIsoDate, todayEasternIso } from "@/lib/dates";
 import { withOpenState } from "@/lib/hours";
-import type { DayHours, DiningHall, MealPeriod, MenuDish } from "@/lib/types";
+import { hasAnyNutrition } from "@/lib/nutrition";
+import type {
+  DayHours,
+  DiningHall,
+  MealPeriod,
+  MenuDish,
+  NutritionInfo,
+} from "@/lib/types";
 
 export { todayEasternIso } from "@/lib/dates";
 
@@ -50,12 +57,88 @@ type NutrisliceSchool = {
   sun_is_24_hours: boolean;
 };
 
+type NutrisliceNutrition = {
+  calories?: number | null;
+  g_fat?: number | null;
+  g_saturated_fat?: number | null;
+  g_trans_fat?: number | null;
+  mg_cholesterol?: number | null;
+  g_carbs?: number | null;
+  g_added_sugar?: number | null;
+  g_sugar?: number | null;
+  mg_potassium?: number | null;
+  mg_sodium?: number | null;
+  g_fiber?: number | null;
+  g_protein?: number | null;
+  mg_iron?: number | null;
+  mg_calcium?: number | null;
+  mg_vitamin_c?: number | null;
+  mcg_vitamin_a?: number | null;
+  mcg_vitamin_d?: number | null;
+};
+
+type NutrisliceFoodIcon = {
+  enabled?: boolean;
+  synced_name?: string | null;
+  slug?: string | null;
+};
+
+type NutrisliceFood = {
+  id?: number;
+  name?: string | null;
+  ingredients?: string | null;
+  has_nutrition_info?: boolean;
+  rounded_nutrition_info?: NutrisliceNutrition | null;
+  serving_size_info?: {
+    serving_size_amount?: string | null;
+    serving_size_unit?: string | null;
+  } | null;
+  icons?: { food_icons?: NutrisliceFoodIcon[] } | null;
+};
+
 type NutrisliceMenuItem = {
+  id?: number;
   is_section_title?: boolean;
   is_station_header?: boolean;
   text?: string | null;
-  food?: { name?: string | null } | null;
+  food?: NutrisliceFood | null;
 };
+
+function mapNutrition(raw?: NutrisliceNutrition | null): NutritionInfo | null {
+  if (!raw) return null;
+  const nutrition: NutritionInfo = {
+    calories: raw.calories ?? null,
+    fatG: raw.g_fat ?? null,
+    saturatedFatG: raw.g_saturated_fat ?? null,
+    transFatG: raw.g_trans_fat ?? null,
+    cholesterolMg: raw.mg_cholesterol ?? null,
+    sodiumMg: raw.mg_sodium ?? null,
+    carbsG: raw.g_carbs ?? null,
+    fiberG: raw.g_fiber ?? null,
+    sugarG: raw.g_sugar ?? null,
+    addedSugarG: raw.g_added_sugar ?? null,
+    proteinG: raw.g_protein ?? null,
+    potassiumMg: raw.mg_potassium ?? null,
+    calciumMg: raw.mg_calcium ?? null,
+    ironMg: raw.mg_iron ?? null,
+    vitaminCMg: raw.mg_vitamin_c ?? null,
+    vitaminAMcg: raw.mcg_vitamin_a ?? null,
+    vitaminDMcg: raw.mcg_vitamin_d ?? null,
+  };
+  return hasAnyNutrition(nutrition) ? nutrition : null;
+}
+
+function mapDietaryTags(food: NutrisliceFood): string[] {
+  const icons = food.icons?.food_icons ?? [];
+  const tags: string[] = [];
+  for (const icon of icons) {
+    if (!icon.enabled) continue;
+    const label = (icon.synced_name || icon.slug || "").trim();
+    if (!label) continue;
+    if (!tags.includes(label)) tags.push(label);
+  }
+  return tags;
+}
 
 type NutrisliceWeekMenu = {
   days: Array<{
@@ -144,9 +227,23 @@ export async function fetchHallMenu(
       station = item.text?.trim() || station;
       continue;
     }
-    const name = item.food?.name?.trim() || item.text?.trim();
+    const food = item.food;
+    const name = food?.name?.trim() || item.text?.trim();
     if (!name) continue;
-    dishes.push({ name, station });
+    const amount = food?.serving_size_info?.serving_size_amount?.trim();
+    const unit = food?.serving_size_info?.serving_size_unit?.trim();
+    const servingSize = amount ? `${amount}${unit ? ` ${unit}` : ""}` : null;
+    const nutrition = mapNutrition(food?.rounded_nutrition_info);
+    dishes.push({
+      id: String(food?.id ?? item.id ?? `${station ?? "x"}-${name}`),
+      name,
+      station,
+      servingSize,
+      ingredients: food?.ingredients?.trim() || null,
+      dietaryTags: food ? mapDietaryTags(food) : [],
+      hasNutrition: Boolean(food?.has_nutrition_info && nutrition),
+      nutrition,
+    });
   }
   return dishes;
 }

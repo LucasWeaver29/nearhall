@@ -12,9 +12,12 @@ import {
   isLikelyOnCampus,
   YALE_CAMPUS,
 } from "@/lib/geo";
+import { menuDayOptions, todayEasternIso } from "@/lib/dates";
 import { inferMealPeriod } from "@/lib/hours";
 import type { HallMenu, MealPeriod, MenusResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const DAY_OPTIONS = menuDayOptions();
 
 function MapLoading() {
   return (
@@ -37,8 +40,10 @@ const MEALS: { id: MealPeriod; label: string }[] = [
 
 export function NearHallApp() {
   const [meal, setMeal] = useState<MealPeriod>(inferMealPeriod());
+  const [menuDate, setMenuDate] = useState(todayEasternIso());
   const [query, setQuery] = useState("");
   const [openOnly, setOpenOnly] = useState(false);
+  const isToday = menuDate === todayEasternIso();
   const [userLocation, setUserLocation] = useState<{
     lat: number;
     lng: number;
@@ -133,8 +138,9 @@ export function NearHallApp() {
     const controller = new AbortController();
     const params = new URLSearchParams({
       meal,
+      date: menuDate,
       q: query,
-      open: openOnly ? "1" : "0",
+      open: openOnly && isToday ? "1" : "0",
     });
     if (userLocation) {
       params.set("lat", String(userLocation.lat));
@@ -161,7 +167,7 @@ export function NearHallApp() {
     });
 
     return () => controller.abort();
-  }, [meal, query, openOnly, userLocation]);
+  }, [meal, menuDate, query, openOnly, isToday, userLocation]);
 
   const selected = useMemo(
     () => data?.halls.find((h) => h.hall.slug === selectedSlug) ?? null,
@@ -274,6 +280,28 @@ export function NearHallApp() {
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {DAY_OPTIONS.map((day) => (
+                <Button
+                  key={day.iso}
+                  size="sm"
+                  variant={menuDate === day.iso ? "default" : "outline"}
+                  title={day.label}
+                  className={cn(
+                    menuDate === day.iso
+                      ? "bg-[#f2b705] text-[#0b1f33] hover:bg-[#ffc933]"
+                      : "border-[#f7f3ea]/25 bg-transparent text-[#f7f3ea] hover:bg-[#f7f3ea]/10",
+                  )}
+                  onClick={() => {
+                    setMenuDate(day.iso);
+                    if (!day.isToday) setOpenOnly(false);
+                  }}
+                >
+                  {day.shortLabel}
+                </Button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
               {MEALS.map((item) => (
                 <Button
                   key={item.id}
@@ -292,9 +320,11 @@ export function NearHallApp() {
               <Button
                 size="sm"
                 variant="outline"
+                disabled={!isToday}
                 className={cn(
                   "border-[#f7f3ea]/25 bg-transparent text-[#f7f3ea] hover:bg-[#f7f3ea]/10",
-                  openOnly && "bg-[#f7f3ea]/15",
+                  openOnly && isToday && "bg-[#f7f3ea]/15",
+                  !isToday && "opacity-40",
                 )}
                 onClick={() => setOpenOnly((v) => !v)}
               >

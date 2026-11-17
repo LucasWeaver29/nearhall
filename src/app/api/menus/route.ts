@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clampMenuDate } from "@/lib/dates";
 import { estimateWalkMeters, haversineMeters } from "@/lib/geo";
 import { inferMealPeriod } from "@/lib/hours";
 import { sampleHallMenus } from "@/lib/sample-data";
-import {
-  fetchDiningHalls,
-  fetchHallMenu,
-  todayEasternIso,
-} from "@/lib/nutrislice";
+import { fetchDiningHalls, fetchHallMenu } from "@/lib/nutrislice";
 import type { HallMenu, MealPeriod } from "@/lib/types";
 
 const MEALS: MealPeriod[] = ["breakfast", "lunch", "dinner"];
@@ -19,7 +16,9 @@ export async function GET(request: NextRequest) {
   const hasUserLocation = Number.isFinite(lat) && Number.isFinite(lng);
   const mealParam = (searchParams.get("meal") ?? inferMealPeriod()) as MealPeriod;
   const meal = MEALS.includes(mealParam) ? mealParam : inferMealPeriod();
-  const openOnly = searchParams.get("open") === "1";
+  const date = clampMenuDate(searchParams.get("date"));
+  const isToday = date === clampMenuDate(null);
+  const openOnly = isToday && searchParams.get("open") === "1";
   const campusOnly = searchParams.get("campus") !== "0";
 
   try {
@@ -33,7 +32,7 @@ export async function GET(request: NextRequest) {
     const menus = await Promise.all(
       filtered.map(async (hall) => {
         try {
-          const dishes = await fetchHallMenu(hall, meal);
+          const dishes = await fetchHallMenu(hall, meal, date);
           const matchingDishes = query
             ? dishes.filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
             : dishes;
@@ -71,7 +70,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({
-      date: todayEasternIso(),
+      date,
       meal,
       query,
       source: "live" as const,
@@ -92,7 +91,7 @@ export async function GET(request: NextRequest) {
     }));
     halls.sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
     return NextResponse.json({
-      date: todayEasternIso(),
+      date,
       meal,
       query,
       source: "sample" as const,

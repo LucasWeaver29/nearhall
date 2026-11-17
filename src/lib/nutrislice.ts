@@ -1,5 +1,8 @@
+import { parseIsoDate, todayEasternIso } from "@/lib/dates";
 import { withOpenState } from "@/lib/hours";
 import type { DayHours, DiningHall, MealPeriod, MenuDish } from "@/lib/types";
+
+export { todayEasternIso } from "@/lib/dates";
 
 const API_BASE = "https://yalehospitality.api.nutrislice.com";
 
@@ -119,34 +122,19 @@ export async function fetchDiningHalls(): Promise<DiningHall[]> {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function easternDateParts(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const year = parts.find((p) => p.type === "year")!.value;
-  const month = parts.find((p) => p.type === "month")!.value;
-  const day = parts.find((p) => p.type === "day")!.value;
-  return { year, month, day, iso: `${year}-${month}-${day}` };
-}
-
-export function todayEasternIso(date = new Date()) {
-  return easternDateParts(date).iso;
-}
-
 export async function fetchHallMenu(
   hall: DiningHall,
   meal: MealPeriod,
-  date = new Date(),
+  dateIso: string = todayEasternIso(),
 ): Promise<MenuDish[]> {
   if (!hall.mealTypes.includes(meal)) return [];
-  const { year, month, day, iso } = easternDateParts(date);
+  const parts = parseIsoDate(dateIso);
+  if (!parts) return [];
+  const { year, month, day } = parts;
   const week = await fetchJson<NutrisliceWeekMenu>(
     `/menu/api/weeks/school/${hall.slug}/menu-type/${meal}/${year}/${month}/${day}/`,
   );
-  const dayMenu = week.days.find((d) => d.date === iso);
+  const dayMenu = week.days.find((d) => d.date === dateIso);
   if (!dayMenu) return [];
 
   const dishes: MenuDish[] = [];

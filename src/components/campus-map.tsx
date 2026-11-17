@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CircleMarker,
   MapContainer,
@@ -33,14 +33,25 @@ function InvalidateOnResize() {
   const map = useMap();
   useEffect(() => {
     const container = map.getContainer();
-    const resize = () => map.invalidateSize({ animate: false });
+    const resize = () => {
+      try {
+        map.invalidateSize({ animate: false });
+      } catch {
+        // Map may already be torn down during fast remounts.
+      }
+    };
     resize();
+    const timer = window.setTimeout(resize, 100);
     const observer = new ResizeObserver(resize);
     observer.observe(container);
     window.addEventListener("resize", resize);
     return () => {
+      window.clearTimeout(timer);
       observer.disconnect();
       window.removeEventListener("resize", resize);
+      // Allow React Strict Mode / HMR to remount cleanly.
+      const el = container as HTMLElement & { _leaflet_id?: number | null };
+      el._leaflet_id = undefined;
     };
   }, [map]);
   return null;
@@ -68,51 +79,54 @@ function FocusSelection({
     : "";
 
   useEffect(() => {
-    // Prefer fitting you + selected hall (and route if present).
-    if (
-      selectedLat != null &&
-      selectedLng != null &&
-      userLat != null &&
-      userLng != null
-    ) {
-      const points: [number, number][] =
-        routeCoordinates && routeCoordinates.length > 1
-          ? routeCoordinates
-          : [
-              [userLat, userLng],
-              [selectedLat, selectedLng],
-            ];
+    try {
+      if (
+        selectedLat != null &&
+        selectedLng != null &&
+        userLat != null &&
+        userLng != null
+      ) {
+        const points: [number, number][] =
+          routeCoordinates && routeCoordinates.length > 1
+            ? routeCoordinates
+            : [
+                [userLat, userLng],
+                [selectedLat, selectedLng],
+              ];
+        map.fitBounds(points, {
+          padding: [48, 48],
+          maxZoom: 17,
+          animate: true,
+        });
+        return;
+      }
+
+      if (selectedLat != null && selectedLng != null) {
+        map.setView([selectedLat, selectedLng], 17, { animate: true });
+        return;
+      }
+
+      const points: [number, number][] = halls.map((h) => [
+        h.hall.latitude,
+        h.hall.longitude,
+      ]);
+      if (userLat != null && userLng != null) points.push([userLat, userLng]);
+      if (points.length === 0) {
+        map.setView([YALE_CAMPUS.center.lat, YALE_CAMPUS.center.lng], 15);
+        return;
+      }
+      if (points.length === 1) {
+        map.setView(points[0], 16);
+        return;
+      }
       map.fitBounds(points, {
-        padding: [48, 48],
-        maxZoom: 17,
+        padding: [36, 36],
+        maxZoom: 16,
         animate: true,
       });
-      return;
+    } catch {
+      // Ignore fit errors during unmount/remount.
     }
-
-    if (selectedLat != null && selectedLng != null) {
-      map.setView([selectedLat, selectedLng], 17, { animate: true });
-      return;
-    }
-
-    const points: [number, number][] = halls.map((h) => [
-      h.hall.latitude,
-      h.hall.longitude,
-    ]);
-    if (userLat != null && userLng != null) points.push([userLat, userLng]);
-    if (points.length === 0) {
-      map.setView([YALE_CAMPUS.center.lat, YALE_CAMPUS.center.lng], 15);
-      return;
-    }
-    if (points.length === 1) {
-      map.setView(points[0], 16);
-      return;
-    }
-    map.fitBounds(points, {
-      padding: [36, 36],
-      maxZoom: 16,
-      animate: true,
-    });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refit on selection / location / route only
   }, [selectedSlug, selectedLat, selectedLng, userLat, userLng, routeKey, map]);
 
@@ -138,6 +152,11 @@ export function CampusMap({
   routeSource = null,
   onSelect,
 }: Props) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const icons = useMemo(() => {
     return new Map(
       halls.map((row) => [
@@ -147,70 +166,82 @@ export function CampusMap({
     );
   }, [halls, selectedSlug]);
 
+  if (!mounted) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-[#16324a] text-sm text-[#f7f3ea]">
+        Loading map…
+      </div>
+    );
+  }
+
   return (
-    <MapContainer
-      center={[YALE_CAMPUS.center.lat, YALE_CAMPUS.center.lng]}
-      zoom={15}
-      minZoom={NEW_HAVEN_BOUNDS.minZoom}
-      maxBounds={maxBounds}
-      maxBoundsViscosity={1}
-      className="h-full w-full"
-      zoomControl={false}
-      attributionControl
-    >
-      <TileLayer
-        url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-        attribution="Tiles &copy; Esri · Pedestrian routing &copy; Valhalla / OSM"
-      />
-      <InvalidateOnResize />
-      <FocusSelection
-        halls={halls}
-        selectedSlug={selectedSlug}
-        userLocation={userLocation}
-        routeCoordinates={routeCoordinates}
-      />
-      {routeCoordinates && routeCoordinates.length > 1 ? (
-        <Polyline
-          positions={routeCoordinates}
-          pathOptions={{
-            color: "#F2B705",
-            weight: 4,
-            opacity: 0.9,
-            lineCap: "round",
-            lineJoin: "round",
-            dashArray: routeSource === "straight" ? "8 10" : undefined,
-          }}
+    <div className="h-full w-full">
+      <MapContainer
+        key="nearhall-campus-map"
+        center={[YALE_CAMPUS.center.lat, YALE_CAMPUS.center.lng]}
+        zoom={15}
+        minZoom={NEW_HAVEN_BOUNDS.minZoom}
+        maxBounds={maxBounds}
+        maxBoundsViscosity={1}
+        className="h-full w-full"
+        style={{ height: "100%", width: "100%" }}
+        zoomControl={false}
+        attributionControl
+      >
+        <TileLayer
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+          attribution="Tiles &copy; Esri · Pedestrian routing &copy; Valhalla / OSM"
         />
-      ) : null}
-      {userLocation ? (
-        <CircleMarker
-          center={[userLocation.lat, userLocation.lng]}
-          radius={8}
-          pathOptions={{
-            color: "#F7F3EA",
-            fillColor: "#C45C26",
-            fillOpacity: 1,
-            weight: 2,
-          }}
-        >
-          <Popup>You are here</Popup>
-        </CircleMarker>
-      ) : null}
-      {halls.map((row) => (
-        <Marker
-          key={row.hall.slug}
-          position={[row.hall.latitude, row.hall.longitude]}
-          icon={icons.get(row.hall.slug)}
-          eventHandlers={{
-            click: () => onSelect(row.hall.slug),
-          }}
-        >
-          <Popup>
-            <strong>{row.hall.name}</strong>
-            <div>{row.hall.hoursLabel}</div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+        <InvalidateOnResize />
+        <FocusSelection
+          halls={halls}
+          selectedSlug={selectedSlug}
+          userLocation={userLocation}
+          routeCoordinates={routeCoordinates}
+        />
+        {routeCoordinates && routeCoordinates.length > 1 ? (
+          <Polyline
+            positions={routeCoordinates}
+            pathOptions={{
+              color: "#F2B705",
+              weight: 4,
+              opacity: 0.9,
+              lineCap: "round",
+              lineJoin: "round",
+              dashArray: routeSource === "straight" ? "8 10" : undefined,
+            }}
+          />
+        ) : null}
+        {userLocation ? (
+          <CircleMarker
+            center={[userLocation.lat, userLocation.lng]}
+            radius={8}
+            pathOptions={{
+              color: "#F7F3EA",
+              fillColor: "#C45C26",
+              fillOpacity: 1,
+              weight: 2,
+            }}
+          >
+            <Popup>You are here</Popup>
+          </CircleMarker>
+        ) : null}
+        {halls.map((row) => (
+          <Marker
+            key={row.hall.slug}
+            position={[row.hall.latitude, row.hall.longitude]}
+            icon={icons.get(row.hall.slug)}
+            eventHandlers={{
+              click: () => onSelect(row.hall.slug),
+            }}
+          >
+            <Popup>
+              <strong>{row.hall.name}</strong>
+              <div>{row.hall.hoursLabel}</div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   );
 }

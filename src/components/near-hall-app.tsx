@@ -274,16 +274,18 @@ export function NearHallApp() {
       </header>
 
       <main className="relative z-10 mx-auto grid min-h-0 w-full max-w-7xl flex-1 gap-3 px-4 pb-3 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
-        <section className="relative h-[34vh] min-h-[220px] overflow-hidden border border-[#f7f3ea]/20 lg:h-auto lg:min-h-0">
-          <CampusMap
-            halls={data?.halls ?? []}
-            selectedSlug={selectedSlug}
-            userLocation={userLocation}
-            routeCoordinates={routeCoordinates}
-            routeSource={walkSummary?.source ?? null}
-            onSelect={setSelectedSlug}
-          />
-          <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-[#0b1f33]/80 px-2 py-1 text-xs text-[#d7e0ea] backdrop-blur">
+        <section className="relative h-[34vh] min-h-[220px] overflow-hidden border border-[#f7f3ea]/20 lg:h-full lg:min-h-0">
+          <div className="absolute inset-0">
+            <CampusMap
+              halls={data?.halls ?? []}
+              selectedSlug={selectedSlug}
+              userLocation={userLocation}
+              routeCoordinates={routeCoordinates}
+              routeSource={walkSummary?.source ?? null}
+              onSelect={setSelectedSlug}
+            />
+          </div>
+          <div className="pointer-events-none absolute left-3 top-3 z-[500] rounded-md bg-[#0b1f33]/80 px-2 py-1 text-xs text-[#d7e0ea] backdrop-blur">
             {walkSummary
               ? `${walkSummary.source === "straight" ? "Direct campus" : "Walk"} ~${formatWalkMinutes(walkSummary.durationSeconds)} · ${formatDistance(walkSummary.distanceMeters)}`
               : "New Haven map · sorted by proximity"}

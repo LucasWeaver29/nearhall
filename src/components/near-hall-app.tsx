@@ -292,7 +292,7 @@ export function NearHallApp() {
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col gap-3 overflow-hidden">
+        <section className="flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain lg:overflow-hidden">
           {SOCIAL_ENABLED ? (
             <SocialPanel
               meal={meal}
@@ -306,7 +306,7 @@ export function NearHallApp() {
             />
           ) : null}
 
-          <div className="shrink-0 space-y-3 border border-[#f7f3ea]/15 bg-[#10263d]/80 p-3 backdrop-blur sm:p-4">
+          <div className="shrink-0 space-y-2 border border-[#f7f3ea]/15 bg-[#10263d]/80 p-3 backdrop-blur sm:space-y-3 sm:p-4">
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#8fa3b8]" />
               <Input
@@ -401,7 +401,8 @@ export function NearHallApp() {
             </div>
           ) : null}
 
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
+          {/* Keep at least ~3 hall rows visible between Friends and the detail panel. */}
+          <div className="min-h-[14.5rem] flex-1 basis-[14.5rem] space-y-2 overflow-y-auto overscroll-contain pr-1">
             {(data?.halls ?? []).length === 0 && !isPending ? (
               <EmptyState query={query} openOnly={openOnly && isToday} meal={meal} />
             ) : null}
@@ -424,7 +425,7 @@ export function NearHallApp() {
           </div>
 
           {selected ? (
-            <div className="flex max-h-[42vh] shrink-0 flex-col overflow-hidden border border-[#f2b705]/35 bg-[#10263d]">
+            <div className="flex max-h-[min(32vh,18rem)] min-h-0 shrink-[2] flex-col overflow-hidden border border-[#f2b705]/35 bg-[#10263d]">
               <div className="shrink-0 space-y-2 border-b border-[#f7f3ea]/10 p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -511,16 +512,16 @@ function HallRow({
       type="button"
       onClick={onSelect}
       className={cn(
-        "w-full border px-3 py-3 text-left transition duration-200 sm:px-4",
+        "w-full border px-3 py-2.5 text-left transition duration-200 sm:px-4",
         active
           ? "border-[#f2b705] bg-[#16324a] shadow-[0_0_0_1px_rgba(242,183,5,0.35)]"
           : "border-[#f7f3ea]/12 bg-[#0f2438]/70 hover:border-[#f7f3ea]/30",
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <div className="font-medium text-[#f7f3ea]">{row.hall.name}</div>
-          <div className="mt-1 text-xs text-[#9eb0c2]">
+          <div className="mt-0.5 text-xs text-[#9eb0c2]">
             {row.hall.openNow ? "Serving now" : "Not serving now"} · {row.hall.hoursLabel}
           </div>
         </div>
@@ -528,7 +529,7 @@ function HallRow({
           {formatDistance(distanceMeters)}
         </div>
       </div>
-      <p className="mt-2 line-clamp-2 text-sm text-[#c5d2df]">
+      <p className="mt-1.5 line-clamp-1 text-sm text-[#c5d2df]">
         {preview || "No dishes listed for this meal."}
       </p>
       {friendCheckins.length > 0 ? (

@@ -176,7 +176,7 @@ export function SocialPanel({
   }
 
   return (
-    <section className="shrink-0 border border-[#f7f3ea]/15 bg-[#10263d]/80 p-3 backdrop-blur sm:p-4">
+    <section className="max-h-[min(28vh,15rem)] shrink-0 overflow-y-auto overscroll-contain border border-[#f7f3ea]/15 bg-[#10263d]/80 p-3 backdrop-blur sm:p-4">
       <div className="mb-2 flex items-center gap-2 text-[#f2b705]">
         <Users className="size-4" />
         <h3 className="font-[family-name:var(--font-display)] text-lg">Friends</h3>

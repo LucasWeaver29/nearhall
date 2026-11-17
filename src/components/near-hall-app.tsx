@@ -266,7 +266,7 @@ export function NearHallApp() {
             NearHall
           </p>
           <p className="mt-0.5 truncate text-sm text-[#d7e0ea]">
-            Closest Yale dining - what’s open, what’s serving
+            Closest yale dining - when, where and what
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">

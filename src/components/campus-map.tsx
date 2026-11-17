@@ -142,16 +142,20 @@ function FocusSelection({
 
 function hallIcon(selected: boolean, open: boolean, hasFriends: boolean) {
   const fill = selected ? "#F2B705" : open ? "#0B3A5B" : "#6B7C8A";
-  // Soft gold halo + tiny pip when someone is eating here — readable but quiet.
+  // Inline styles only — Tailwind preflight collapses empty CSS-classed divs
+  // (height:0 / border:0), which made every pin disappear.
   const friendRing = hasFriends
-    ? `<span class="nearhall-friend-ring" aria-hidden="true"></span><span class="nearhall-friend-pip" aria-hidden="true"></span>`
+    ? `<span style="position:absolute;inset:-6px;border-radius:999px;border:1.5px solid rgba(242,183,5,.55);box-shadow:0 0 0 3px rgba(242,183,5,.12);animation:nearhall-friend-pulse 2.4s ease-out infinite;pointer-events:none"></span><span style="position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:999px;background:#F2B705;border:1px solid #0b1f33;box-shadow:0 0 0 1px rgba(242,183,5,.35);pointer-events:none"></span>`
     : "";
-  const html = `<div class="nearhall-marker-inner${hasFriends ? " nearhall-marker-inner--friend" : ""}" style="background:${fill}">${friendRing}</div>`;
+  const size = 16;
+  const pad = hasFriends ? 6 : 0;
+  const box = size + pad * 2;
+  const html = `<div style="position:relative;width:${box}px;height:${box}px;display:flex;align-items:center;justify-content:center"><div style="position:relative;width:${size}px;height:${size}px;border-radius:999px;background:${fill};border:2px solid #F7F3EA;box-shadow:0 1px 4px rgba(11,31,51,.35);box-sizing:border-box;flex:0 0 auto">${friendRing}</div></div>`;
   return L.divIcon({
-    className: `nearhall-marker${hasFriends ? " nearhall-marker--friend" : ""}`,
+    className: "nearhall-marker",
     html,
-    iconSize: hasFriends ? [28, 28] : [16, 16],
-    iconAnchor: hasFriends ? [14, 14] : [8, 8],
+    iconSize: [box, box],
+    iconAnchor: [box / 2, box / 2],
   });
 }
 

@@ -99,43 +99,6 @@
   border: none !important;
 }
 
-.nearhall-marker-inner {
-  position: relative;
-  width: 16px;
-  height: 16px;
-  margin: 0 auto;
-  border-radius: 999px;
-  border: 2px solid #f7f3ea;
-  box-shadow: 0 1px 4px rgba(11, 31, 51, 0.35);
-}
-
-.nearhall-marker--friend .nearhall-marker-inner {
-  margin-top: 6px;
-}
-
-.nearhall-friend-ring {
-  position: absolute;
-  inset: -6px;
-  border-radius: 999px;
-  border: 1.5px solid rgba(242, 183, 5, 0.55);
-  box-shadow: 0 0 0 3px rgba(242, 183, 5, 0.12);
-  animation: nearhall-friend-pulse 2.4s ease-out infinite;
-  pointer-events: none;
-}
-
-.nearhall-friend-pip {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: #f2b705;
-  border: 1px solid #0b1f33;
-  box-shadow: 0 0 0 1px rgba(242, 183, 5, 0.35);
-  pointer-events: none;
-}
-
 @keyframes nearhall-friend-pulse {
   0% {
     transform: scale(0.92);
@@ -152,9 +115,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nearhall-friend-ring {
-    animation: none;
-    opacity: 0.7;
+  .nearhall-marker [style*="nearhall-friend-pulse"] {
+    animation: none !important;
+    opacity: 0.7 !important;
   }
 }
 

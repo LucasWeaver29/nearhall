@@ -2,6 +2,11 @@
 
 Map-first Yale dining finder: nearest halls, open hours, today’s menus, and the option to see where friends are eating.
 
+## Demo (<60s)
+
+[Watch the feature demo](docs/nearhall-demo.mp4) — map, search, filters, menus/nutrition, and friends check-ins.
+
+
 ## What it does
 
 - Pulls residential + retail dining locations from Yale Hospitality’s public **Nutrislice** API

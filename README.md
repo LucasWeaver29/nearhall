@@ -2,6 +2,8 @@
 
 Map-first Yale dining finder: nearest halls, open hours, today’s menus, and the option to see where friends are eating.
 
+**Live demo:** [https://nearhall.apps.grok.bot](https://nearhall.apps.grok.bot)
+
 ## Demo (<60s)
 
 [Watch the feature demo](docs/nearhall-demo.mp4) — map, search, filters, menus/nutrition, and friends check-ins.

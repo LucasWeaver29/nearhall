@@ -32,13 +32,21 @@ export async function GET(request: NextRequest) {
       return true;
     });
 
+    const q = query.toLowerCase();
     const menus = await Promise.all(
       filtered.map(async (hall) => {
         try {
           const dishes = await fetchHallMenu(hall, meal, date);
-          const matchingDishes = query
-            ? dishes.filter((d) => d.name.toLowerCase().includes(query.toLowerCase()))
+          const nameMatch =
+            !!q &&
+            (hall.name.toLowerCase().includes(q) ||
+              hall.slug.toLowerCase().includes(q) ||
+              hall.address.toLowerCase().includes(q));
+          const dishMatches = q
+            ? dishes.filter((d) => d.name.toLowerCase().includes(q))
             : dishes;
+          // Hall-name hits show the full meal menu; dish hits stay filtered.
+          const matchingDishes = nameMatch ? dishes : dishMatches;
           const distanceMeters = hasUserLocation
             ? estimateWalkMeters(
                 haversineMeters(
@@ -53,17 +61,20 @@ export async function GET(request: NextRequest) {
             dishes,
             matchingDishes,
             distanceMeters,
-          } satisfies HallMenu;
+            nameMatch,
+          };
         } catch {
           return null;
         }
       }),
     );
 
-    let hallsWithMenus = menus.filter((row): row is HallMenu => row != null);
-    if (query) {
-      hallsWithMenus = hallsWithMenus.filter((row) => row.matchingDishes.length > 0);
-    }
+    let hallsWithMenus = menus
+      .filter((row): row is NonNullable<typeof row> => row != null)
+      .filter((row) =>
+        q ? row.nameMatch || row.matchingDishes.length > 0 : true,
+      )
+      .map(({ nameMatch: _nameMatch, ...row }) => row satisfies HallMenu);
 
     hallsWithMenus.sort((a, b) => {
       const da = a.distanceMeters ?? Number.POSITIVE_INFINITY;

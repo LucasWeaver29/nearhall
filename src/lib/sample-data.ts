@@ -166,15 +166,24 @@ export function sampleHallMenus(meal: MealPeriod, query: string): HallMenu[] {
         vitaminDMcg: 0,
       },
     }));
-    const matchingDishes = q
+    const nameMatch =
+      !!q &&
+      (h.name.toLowerCase().includes(q) ||
+        h.slug.toLowerCase().includes(q) ||
+        h.address.toLowerCase().includes(q));
+    const dishMatches = q
       ? dishes.filter((d) => d.name.toLowerCase().includes(q))
       : dishes;
+    const matchingDishes = nameMatch ? dishes : dishMatches;
     return {
       hall: h,
       meal,
       dishes,
       matchingDishes,
       distanceMeters: null,
+      nameMatch,
     };
-  }).filter((row) => (q ? row.matchingDishes.length > 0 : true));
+  })
+    .filter((row) => (q ? row.nameMatch || row.matchingDishes.length > 0 : true))
+    .map(({ nameMatch: _nameMatch, ...row }) => row);
 }

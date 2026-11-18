@@ -338,7 +338,7 @@ export function NearHallApp() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search dishes (pizza, tacos, vegan…)"
+                placeholder="Search halls or dishes (Silliman, pizza…)"
                 className="border-[#f7f3ea]/20 bg-[#0b1f33]/60 pl-9 text-[#f7f3ea] placeholder:text-[#8fa3b8]"
               />
             </div>
@@ -730,7 +730,7 @@ function EmptyState({
       <UtensilsCrossed className="size-5 text-[#f2b705]" />
       <p>
         {query
-          ? `Nothing matches “${query}” for this meal. Try another dish or meal period.`
+          ? `Nothing matches “${query}” for this meal. Try a hall name, dish, or meal period.`
           : openOnly
             ? `No halls are serving ${meal} right now. Turn off “Serving now” to browse the full ${meal} list.`
             : "No halls returned. Check back shortly or clear filters."}

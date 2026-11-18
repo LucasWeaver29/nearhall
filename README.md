@@ -1,8 +1,6 @@
 # NearHall
 
-Map-first Yale dining finder for hackathon demos: nearest halls, open hours, and today’s menus.
-
-![NearHall built in Cursor](docs/nearhall-cursor-screenshot.jpg)
+Map-first Yale dining finder: nearest halls, open hours, today’s menus, and option to see where friends are eating.
 
 ## What it does
 
@@ -33,5 +31,10 @@ Auth + friends + “I’m eating here” check-ins are behind a kill switch:
 // src/lib/social/config.ts
 export const SOCIAL_ENABLED = true; // set false to hide social UI + APIs
 ```
+
+## Me using cursor:
+
+![NearHall built in Cursor](docs/nearhall-cursor-screenshot.jpg)
+
 
 Locally, data uses in-memory **PGlite**. Published apps with `cursor-app.json` get Postgres via `DATABASE_URL`.

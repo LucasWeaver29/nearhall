@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  Component,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   CircleMarker,
   MapContainer,
@@ -56,9 +63,6 @@ function InvalidateOnResize() {
       window.clearTimeout(timer);
       observer.disconnect();
       window.removeEventListener("resize", resize);
-      // Allow React Strict Mode / HMR to remount cleanly.
-      const el = container as HTMLElement & { _leaflet_id?: number | null };
-      el._leaflet_id = undefined;
     };
   }, [map]);
   return null;
@@ -168,6 +172,42 @@ function friendLabel(people: FriendPresence[]): string {
   return `Eating here: ${names.join(", ")}${extra}`;
 }
 
+/** Remount Leaflet into a fresh DOM node if the container was reused. */
+class MapRemountBoundary extends Component<
+  { resetKey: number; onError: () => void; children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: Error) {
+    if (/Map container is being reused|already initialized/i.test(error.message)) {
+      // Defer so we don't setState during the error render path twice.
+      queueMicrotask(() => this.props.onError());
+    }
+  }
+
+  componentDidUpdate(prevProps: { resetKey: number }) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.failed) {
+      this.setState({ failed: false });
+    }
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="flex h-full w-full items-center justify-center bg-[#16324a] text-sm text-[#f7f3ea]">
+          Reloading map…
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function CampusMap({
   halls,
   selectedSlug,
@@ -178,8 +218,14 @@ export function CampusMap({
   onSelect,
 }: Props) {
   const [mounted, setMounted] = useState(false);
+  const [epoch, setEpoch] = useState(0);
+
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  const remountMap = useCallback(() => {
+    setEpoch((n) => n + 1);
   }, []);
 
   const icons = useMemo(() => {
@@ -204,81 +250,86 @@ export function CampusMap({
   }
 
   return (
-    <div className="h-full w-full">
-      <MapContainer
-        key="nearhall-campus-map"
-        center={[YALE_CAMPUS.center.lat, YALE_CAMPUS.center.lng]}
-        zoom={15}
-        minZoom={NEW_HAVEN_BOUNDS.minZoom}
-        maxBounds={maxBounds}
-        maxBoundsViscosity={1}
-        className="h-full w-full"
-        style={{ height: "100%", width: "100%" }}
-        zoomControl={false}
-        attributionControl
-      >
-        <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-          attribution="Tiles &copy; Esri · Pedestrian routing &copy; Valhalla / OSM"
-        />
-        <InvalidateOnResize />
-        <FocusSelection
-          halls={halls}
-          selectedSlug={selectedSlug}
-          userLocation={userLocation}
-          routeCoordinates={routeCoordinates}
-        />
-        {routeCoordinates && routeCoordinates.length > 1 ? (
-          <Polyline
-            positions={routeCoordinates}
-            pathOptions={{
-              color: "#F2B705",
-              weight: 4,
-              opacity: 0.9,
-              lineCap: "round",
-              lineJoin: "round",
-              dashArray: routeSource === "straight" ? "8 10" : undefined,
-            }}
+    <MapRemountBoundary resetKey={epoch} onError={remountMap}>
+      {/* Fresh host node each epoch so Leaflet never reuses a dirty container. */}
+      <div className="h-full w-full" key={`nearhall-map-host-${epoch}`}>
+        <MapContainer
+          key={`nearhall-campus-map-${epoch}`}
+          center={[YALE_CAMPUS.center.lat, YALE_CAMPUS.center.lng]}
+          zoom={15}
+          minZoom={NEW_HAVEN_BOUNDS.minZoom}
+          maxBounds={maxBounds}
+          maxBoundsViscosity={1}
+          className="h-full w-full"
+          style={{ height: "100%", width: "100%" }}
+          zoomControl={false}
+          attributionControl
+        >
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+            attribution="Tiles &copy; Esri · Pedestrian routing &copy; Valhalla / OSM"
           />
-        ) : null}
-        {userLocation ? (
-          <CircleMarker
-            center={[userLocation.lat, userLocation.lng]}
-            radius={8}
-            pathOptions={{
-              color: "#F7F3EA",
-              fillColor: "#C45C26",
-              fillOpacity: 1,
-              weight: 2,
-            }}
-          >
-            <Popup>You are here</Popup>
-          </CircleMarker>
-        ) : null}
-        {halls.map((row) => {
-          const people = friendsByHall[row.hall.slug] ?? [];
-          const presence = friendLabel(people);
-          return (
-            <Marker
-              key={row.hall.slug}
-              position={[row.hall.latitude, row.hall.longitude]}
-              icon={icons.get(row.hall.slug)}
-              zIndexOffset={people.length > 0 ? 200 : 0}
-              eventHandlers={{
-                click: () => onSelect(row.hall.slug),
+          <InvalidateOnResize />
+          <FocusSelection
+            halls={halls}
+            selectedSlug={selectedSlug}
+            userLocation={userLocation}
+            routeCoordinates={routeCoordinates}
+          />
+          {routeCoordinates && routeCoordinates.length > 1 ? (
+            <Polyline
+              positions={routeCoordinates}
+              pathOptions={{
+                color: "#F2B705",
+                weight: 4,
+                opacity: 0.9,
+                lineCap: "round",
+                lineJoin: "round",
+                dashArray: routeSource === "straight" ? "8 10" : undefined,
+              }}
+            />
+          ) : null}
+          {userLocation ? (
+            <CircleMarker
+              center={[userLocation.lat, userLocation.lng]}
+              radius={8}
+              pathOptions={{
+                color: "#F7F3EA",
+                fillColor: "#C45C26",
+                fillOpacity: 1,
+                weight: 2,
               }}
             >
-              <Popup>
-                <strong>{row.hall.name}</strong>
-                <div>{row.hall.hoursLabel}</div>
-                {presence ? (
-                  <div style={{ marginTop: 4, color: "#8a6a00" }}>{presence}</div>
-                ) : null}
-              </Popup>
-            </Marker>
-          );
-        })}
-      </MapContainer>
-    </div>
+              <Popup>You are here</Popup>
+            </CircleMarker>
+          ) : null}
+          {halls.map((row) => {
+            const people = friendsByHall[row.hall.slug] ?? [];
+            const presence = friendLabel(people);
+            const icon = icons.get(row.hall.slug);
+            if (!icon) return null;
+            return (
+              <Marker
+                key={row.hall.slug}
+                position={[row.hall.latitude, row.hall.longitude]}
+                icon={icon}
+                zIndexOffset={people.length > 0 ? 200 : 0}
+                eventHandlers={{
+                  click: () => onSelect(row.hall.slug),
+                }}
+              >
+                <Popup>
+                  <strong>{row.hall.name}</strong>
+                  <div>{row.hall.hoursLabel}</div>
+                  {presence ? (
+                    <div style={{ marginTop: 4, color: "#8a6a00" }}>{presence}</div>
+                  ) : null}
+                </Popup>
+              </Marker>
+            );
+          })}
+        </MapContainer>
+      </div>
+    </MapRemountBoundary>
   );
 }

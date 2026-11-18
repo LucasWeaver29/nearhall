@@ -1,6 +1,6 @@
 # NearHall
 
-Map-first Yale dining finder: nearest halls, open hours, today’s menus, and option to see where friends are eating.
+Map-first Yale dining finder: nearest halls, open hours, today’s menus, and the option to see where friends are eating.
 
 ## What it does
 

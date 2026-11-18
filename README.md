@@ -2,6 +2,8 @@
 
 Map-first Yale dining finder for hackathon demos: nearest halls, open hours, and today’s menus.
 
+![NearHall built in Cursor](docs/nearhall-cursor-screenshot.jpg)
+
 ## What it does
 
 - Pulls residential + retail dining locations from Yale Hospitality’s public **Nutrislice** API
